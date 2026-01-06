@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* 일단 스타일이 먹는지 확인하기 위해 배경색을 강제로 지정해봅니다 */
+body {
+    background-color: #f3f4f6 !important;
+}
