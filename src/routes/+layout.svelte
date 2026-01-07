@@ -1,6 +1,8 @@
 <script>
 	import './layout.css';
 	import { Home, Search, ClipboardList, User } from 'lucide-svelte';
+	import { page } from '$app/stores'; // 현재 페이지 정보를 가져옵니다.
+
 	let { children } = $props();
 </script>
 
@@ -17,24 +19,36 @@
 		{@render children()}
 	</main>
 
-	<nav class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100">
+	<nav class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-area-bottom">
 		<div class="max-w-md mx-auto flex justify-around items-center py-3">
-			<button class="flex flex-col items-center gap-1 text-red-600">
+			
+			<a href="/" class="flex flex-col items-center gap-1 {$page.url.pathname === '/' ? 'text-red-600' : 'text-gray-400'}">
 				<Home size={24} />
 				<span class="text-[10px] font-bold">홈</span>
-			</button>
-			<button class="flex flex-col items-center gap-1 text-gray-400">
+			</a>
+
+			<a href="/search" class="flex flex-col items-center gap-1 {$page.url.pathname === '/search' ? 'text-red-600' : 'text-gray-400'}">
 				<Search size={24} />
 				<span class="text-[10px] font-medium">검색</span>
-			</button>
-			<button class="flex flex-col items-center gap-1 text-gray-400">
+			</a>
+
+			<a href="/review" class="flex flex-col items-center gap-1 {$page.url.pathname === '/review' ? 'text-red-600' : 'text-gray-400'}">
 				<ClipboardList size={24} />
 				<span class="text-[10px] font-medium">리뷰</span>
-			</button>
-			<button class="flex flex-col items-center gap-1 text-gray-400">
+			</a>
+
+			<a href="/my" class="flex flex-col items-center gap-1 {$page.url.pathname === '/my' ? 'text-red-600' : 'text-gray-400'}">
 				<User size={24} />
 				<span class="text-[10px] font-medium">마이</span>
-			</button>
+			</a>
+
 		</div>
 	</nav>
 </div>
+
+<style>
+	/* 아이폰 등 하단 제스처 바 영역 확보 */
+	.safe-area-bottom {
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+</style>

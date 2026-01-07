@@ -1,0 +1,211 @@
+<script>
+	import { ChevronLeft, Star, MapPin, Phone, ExternalLink } from 'lucide-svelte';
+	import { getCategoryIconPath } from '$lib/data/categoryIcons.js';
+	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte'; // [추가] 라이프사이클 함수
+
+	let { data } = $props();
+	let restaurant = $derived(data.restaurant);
+	let topKeywords = $derived(data.topKeywords || []);
+
+	let selectedRating = $state(0);
+	let selectedKeywords = $state([]);
+	const keywordsList = [
+		'음식이 맛있어요 😋', '가성비가 좋아요 💸', '양이 많아요 🥘', '친절해요 😊', '매장이 청결해요 ✨',
+		'혼밥하기 좋아요! 🍱', '다신 안갈래요 😡' ,'혼술하기 좋아요!', '단체모임하기 좋아요'
+	];
+
+	function toggleKeyword(k) {
+		if (selectedKeywords.includes(k)) {
+			selectedKeywords = selectedKeywords.filter(item => item !== k);
+		} else {
+			selectedKeywords = [...selectedKeywords, k];
+		}
+	}
+
+	function handleCall() {
+		if (restaurant?.phone) window.location.href = `tel:${restaurant.phone}`;
+	}
+
+	// [추가] 지도 그리기 로직
+	onMount(() => {
+		if (restaurant && window.kakao && window.kakao.maps) {
+			const container = document.getElementById('map'); // 지도를 담을 div
+			const options = {
+				center: new window.kakao.maps.LatLng(restaurant.y, restaurant.x), // 식당 좌표 (y: 위도, x: 경도)
+				level: 3 // 확대 레벨
+			};
+
+			const map = new window.kakao.maps.Map(container, options);
+
+			// 마커 추가
+			const markerPosition  = new window.kakao.maps.LatLng(restaurant.y, restaurant.x); 
+			const marker = new window.kakao.maps.Marker({
+				position: markerPosition
+			});
+			marker.setMap(map);
+		}
+	});
+</script>
+
+<div class="flex flex-col w-full min-h-screen bg-white max-w-md mx-auto relative pb-32">
+	{#if restaurant}
+		<header class="absolute top-0 left-0 right-0 z-10 p-4 flex items-center">
+			<a href="javascript:history.back()" class="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm text-gray-800 active:scale-90 transition-transform">
+				<ChevronLeft size={24} />
+			</a>
+		</header>
+
+		<div class="w-full h-64 bg-blue-50 flex items-center justify-center relative overflow-hidden">
+			<img 
+				src={getCategoryIconPath(restaurant.mainCategory)} 
+				alt={restaurant.placeName} 
+				class="w-40 h-40 object-contain opacity-50 blur-sm scale-150" 
+			/>
+			<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
+			
+			<div class="absolute bottom-8 left-6 right-6 text-white">
+				<div class="inline-block px-2 py-1 bg-white/20 backdrop-blur-md rounded-md text-xs font-bold mb-2 border border-white/30">
+					{restaurant.mainCategory}
+				</div>
+				<h1 class="text-3xl font-bold font-['Jua'] leading-tight shadow-black drop-shadow-md">
+					{restaurant.placeName}
+				</h1>
+			</div>
+		</div>
+
+		<div class="px-6 -mt-6 bg-white rounded-t-3xl relative z-0 pt-8 flex flex-col gap-8 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+			
+			<div class="flex flex-col gap-6">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<Star class="fill-yellow-400 text-yellow-400" size={28} />
+						<span class="text-3xl font-bold text-gray-900">{restaurant.rating ? restaurant.rating.toFixed(1) : '0.0'}</span>
+						<span class="text-gray-300 text-lg font-medium">/ 5.0</span>
+					</div>
+					<div class="text-right">
+						<p class="text-xs text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded-full inline-block mb-1">
+							신정문으로부터 {restaurant.distanceInMeters}m
+						</p>
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+					<div class="flex items-start gap-3 text-gray-600">
+						<MapPin size={20} class="mt-0.5 text-gray-400 flex-shrink-0" />
+						<p class="font-medium text-sm text-gray-800 leading-relaxed">{restaurant.roadAddressName || '주소 정보 없음'}</p>
+					</div>
+					{#if restaurant.phone}
+						<div class="w-full h-[1px] bg-gray-200"></div>
+						<button onclick={handleCall} class="flex items-center gap-3 text-gray-600 w-full text-left active:opacity-70 transition-opacity">
+							<Phone size={20} class="text-gray-400 flex-shrink-0" />
+							<span class="font-medium text-sm text-gray-800">{restaurant.phone}</span>
+						</button>
+					{/if}
+				</div>
+
+				<div id="map" class="w-full h-48 rounded-2xl border border-gray-200 bg-gray-100 relative overflow-hidden">
+					<div class="absolute inset-0 flex items-center justify-center text-gray-400 text-xs">
+						지도를 불러오는 중...
+					</div>
+				</div>
+
+				<div class="flex gap-3">
+					<a 
+						href="https://map.naver.com/v5/search/{encodeURIComponent(restaurant.placeName)}" 
+						target="_blank"
+						class="flex-1 py-3.5 rounded-xl bg-[#03C75A] text-white font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md shadow-green-100"
+					>
+						<span class="text-sm">N 네이버 지도</span>
+					</a>
+					
+					<a 
+						href={restaurant.placeUrl || `https://map.kakao.com/link/map/${restaurant.placeName},${restaurant.y},${restaurant.x}`} 
+						target="_blank"
+						class="flex-1 py-3.5 rounded-xl bg-[#FEE500] text-[#191919] font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md shadow-yellow-100"
+					>
+						<span class="text-sm">K 카카오 맵</span>
+					</a>
+				</div>
+			</div>
+
+			<div class="h-2 bg-gray-50 -mx-6 border-t border-b border-gray-100"></div>
+
+			<div>
+				<h3 class="text-xl font-bold text-gray-900 mb-4 font-['Jua'] flex items-center gap-2">
+					<span class="text-blue-500">BEST</span> 매력 포인트
+				</h3>
+				{#if topKeywords.length > 0}
+					<div class="flex flex-col gap-2.5">
+						{#each topKeywords as k, i}
+							<div class="flex items-center justify-between p-3.5 bg-white border border-gray-100 rounded-xl shadow-sm">
+								<div class="flex items-center gap-3">
+									<span class="w-6 h-6 flex items-center justify-center {i < 3 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'} rounded-full text-xs font-bold shadow-sm">
+										{i+1}
+									</span>
+									<span class="text-gray-700 font-medium">{k.keyword}</span>
+								</div>
+								<span class="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md">{k.count}명</span>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+						<p class="text-gray-400 text-sm">아직 등록된 키워드가 없어요 🥲</p>
+					</div>
+				{/if}
+			</div>
+
+			<div class="h-2 bg-gray-50 -mx-6 border-t border-b border-gray-100"></div>
+
+			<div class="flex flex-col gap-8">
+				<div>
+					<h3 class="text-lg font-bold text-gray-900 mb-4 font-['Jua']">이 식당 평가하기</h3>
+					<form method="POST" action="?/submitRating" use:enhance={() => {
+						return async ({ update }) => { await update(); selectedRating = 0; alert('소중한 별점 감사합니다! ⭐'); };
+					}} class="bg-gray-50 p-5 rounded-2xl border border-gray-100 text-center">
+						<div class="flex justify-center gap-3 mb-5">
+							{#each [1, 2, 3, 4, 5] as star}
+								<button type="button" onclick={() => selectedRating = star} class="transition-transform active:scale-75 hover:scale-110 focus:outline-none">
+									<Star size={40} class="{selectedRating >= star ? "fill-yellow-400 text-yellow-400 drop-shadow-sm" : "text-gray-300"} transition-colors duration-200" />
+								</button>
+							{/each}
+						</div>
+						<input type="hidden" name="rating" value={selectedRating} />
+						<button disabled={selectedRating === 0} class="w-full py-3 bg-black text-white rounded-xl font-bold disabled:bg-gray-300 disabled:cursor-not-allowed transition-all active:scale-[0.98]">
+							별점 등록하기
+						</button>
+					</form>
+				</div>
+
+				<div>
+					<h3 class="text-lg font-bold text-gray-900 mb-4 font-['Jua']">어떤 점이 좋았나요?</h3>
+					<form method="POST" action="?/submitKeyword" use:enhance={() => {
+						return async ({ update }) => { await update(); selectedKeywords = []; alert('리뷰가 등록되었습니다! 👍'); };
+					}}>
+						<div class="flex flex-wrap gap-2 mb-4">
+							{#each keywordsList as keyword}
+								<button type="button" 
+									onclick={() => toggleKeyword(keyword)}
+									class="px-4 py-2.5 rounded-xl text-sm font-medium border transition-all active:scale-95 {selectedKeywords.includes(keyword) 
+										? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-200' 
+										: 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}"
+								>
+									{keyword}
+								</button>
+							{/each}
+						</div>
+						{#each selectedKeywords as k}
+							<input type="hidden" name="keywords" value={k} />
+						{/each}
+						<button disabled={selectedKeywords.length === 0} class="w-full py-3.5 bg-blue-50 text-blue-600 rounded-xl font-bold disabled:bg-gray-100 disabled:text-gray-400 transition-all active:scale-[0.98] border border-transparent hover:border-blue-100">
+							키워드 리뷰 남기기 ({selectedKeywords.length}개)
+						</button>
+					</form>
+				</div>
+			</div>
+			
+			<div class="h-8"></div>
+		</div>
+	{/if}
+</div>
