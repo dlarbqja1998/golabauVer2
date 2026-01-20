@@ -4,3 +4,13 @@
 body {
     background-color: #f3f4f6 !important;
 }
+
+@layer base {
+  img {
+    /* "멋대로 줄어들지 마!" */
+    max-width: unset; 
+    
+    /* "내가 정한 크기 그대로 유지해!" */
+    flex-shrink: 0;   
+  }
+}

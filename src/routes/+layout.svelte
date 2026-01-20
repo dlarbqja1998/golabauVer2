@@ -1,7 +1,8 @@
 <script>
 	import './layout.css';
-	import { Home, Search, ClipboardList, User } from 'lucide-svelte';
-	import { page } from '$app/stores'; // 현재 페이지 정보를 가져옵니다.
+	// 1. MessageCircle 아이콘을 추가로 가져옵니다 (커뮤니티 느낌)
+	import { Home, Search, ClipboardList, User, MessageCircle } from 'lucide-svelte';
+	import { page } from '$app/stores';
 
 	let { children } = $props();
 </script>
@@ -32,11 +33,10 @@
 				<span class="text-[10px] font-medium">검색</span>
 			</a>
 
-			<a href="/review" class="flex flex-col items-center gap-1 {$page.url.pathname === '/review' ? 'text-red-600' : 'text-gray-400'}">
-				<ClipboardList size={24} />
-				<span class="text-[10px] font-medium">리뷰</span>
+			<a href="/golabassyu" class="flex flex-col items-center gap-1 {$page.url.pathname.startsWith('/golabassyu') ? 'text-red-600' : 'text-gray-400'}">
+				<MessageCircle size={24} />
+				<span class="text-[10px] font-bold tracking-tight">골라바쓔</span>
 			</a>
-
 			<a href="/my" class="flex flex-col items-center gap-1 {$page.url.pathname === '/my' ? 'text-red-600' : 'text-gray-400'}">
 				<User size={24} />
 				<span class="text-[10px] font-medium">마이</span>
@@ -47,7 +47,6 @@
 </div>
 
 <style>
-	/* 아이폰 등 하단 제스처 바 영역 확보 */
 	.safe-area-bottom {
 		padding-bottom: env(safe-area-inset-bottom);
 	}
