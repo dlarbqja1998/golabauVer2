@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 // 👇 comments 테이블도 import 해야 개수를 셀 수 있습니다.
-import { golabassyuPosts, users, postLikes, comments } from '../../db/schema';
+import { golabassyuPosts, users, postLikes, golabassyuComments } from '../../db/schema';
 import { desc, eq, sql } from 'drizzle-orm';
 
 export async function load() {
@@ -20,8 +20,8 @@ export async function load() {
         writerBadge: users.badge,
         // ★ [추가] 댓글 개수 세기 (서브쿼리 방식)
         commentCount: sql<number>`(
-            SELECT count(*) FROM ${comments} 
-            WHERE ${comments.postId} = ${golabassyuPosts.id}
+            SELECT count(*) FROM ${golabassyuComments} 
+            WHERE ${golabassyuComments.postId} = ${golabassyuPosts.id}
         )`.mapWith(Number) 
     })
     .from(golabassyuPosts)

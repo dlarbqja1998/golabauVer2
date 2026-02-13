@@ -1,39 +1,44 @@
-// src/routes/api/comment/+server.ts
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-// 👇 족보 위치 정확하게 맞춤
-import { comments, users } from '../../../db/schema';
+// 👇 [수정 1] schema.ts에 정의된 진짜 이름(golabassyuComments)으로 가져옵니다!
+import { golabassyuComments, users } from '../../../db/schema';
 import { eq, desc } from 'drizzle-orm';
-// 👇 [추가] 타입 명찰 가져오기
 import type { RequestEvent } from './$types';
 
-// 댓글 가져오기
-// 👇 [수정] url 옆에 명찰 붙임
+// 댓글 가져오기 (GET)
 export async function GET({ url }: RequestEvent) {
     const postId = Number(url.searchParams.get('postId'));
     
+    // 👇 [수정 2] comments -> golabassyuComments 로 변경
     const result = await db.select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
+        id: golabassyuComments.id,
+        content: golabassyuComments.content,
+        createdAt: golabassyuComments.createdAt,
         writerName: users.nickname,
         writerBadge: users.badge
     })
-    .from(comments)
-    .leftJoin(users, eq(comments.userId, users.id))
-    .where(eq(comments.postId, postId))
-    .orderBy(desc(comments.createdAt));
+    .from(golabassyuComments)
+    .leftJoin(users, eq(golabassyuComments.userId, users.id))
+    .where(eq(golabassyuComments.postId, postId))
+    .orderBy(desc(golabassyuComments.createdAt));
 
     return json(result);
 }
 
-// 댓글 쓰기
-// 👇 [수정] request 옆에 명찰 붙임
-export async function POST({ request }: RequestEvent) {
-    const { postId, content } = await request.json();
-    const userId = 1; // 임시 유저
+// 댓글 쓰기 (POST)
+export async function POST({ request, locals }: RequestEvent) {
+    // 👇 [추가] 로그인 안 했으면 댓글 못 쓰게 막기
+    if (!locals.user) {
+        return json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    await db.insert(comments).values({
+    const { postId, content } = await request.json();
+    
+    // 👇 [수정 3] 임시 유저(1) 대신 진짜 로그인한 유저 ID 사용
+    const userId = locals.user.id; 
+
+    // 👇 [수정 4] comments -> golabassyuComments 로 변경
+    await db.insert(golabassyuComments).values({
         postId,
         userId,
         content
