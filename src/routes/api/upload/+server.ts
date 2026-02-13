@@ -1,35 +1,44 @@
-// src/routes/api/upload/+server.ts
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+// SvelteKit에서 제공하는 타입 추가
+import type { RequestEvent } from '@sveltejs/kit'; 
+import { r2 } from '../../../lib/server/s3'; 
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import dotenv from 'dotenv';
 
-export const POST: RequestHandler = async ({ request, platform }) => {
-	const formData = await request.formData();
-	const file = formData.get('image') as File;
+dotenv.config();
 
-	if (!file) {
-		return json({ error: '이미지가 없습니다.' }, { status: 400 });
-	}
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
 
-	const fileName = `${Date.now()}_${file.name}`;
+// { request }: RequestEvent 로 타입을 지정해주면 빨간 줄이 사라집니다.
+export async function POST({ request }: RequestEvent) {
+    const formData = await request.formData();
+    const file = formData.get('image') as File;
 
-	try {
-		// 로컬 모드일 때 platform.env가 없을 수 있음
-		if (!platform?.env?.R2) {
-            // 로컬 테스트용: 그냥 성공했다고 뻥치고 가짜 주소 줌
-            // (주의: 실제 파일은 R2에 안 올라감. 엑박 뜰 수 있음)
-			console.log('⚠️ 로컬 모드: R2가 없어서 업로드 흉내만 냅니다.');
-            return json({ url: 'https://placehold.co/600x400?text=Local+Test+Image' });
-		}
+    if (!file) {
+        return json({ error: '이미지가 없습니다.' }, { status: 400 });
+    }
 
-		await platform.env.R2.put(fileName, file);
-		
-        // ⚠️ 본인의 R2 공개 주소로 바꿔야 함
-		const imageUrl = `https://pub-my-r2-domain.r2.dev/${fileName}`;
+    const uniqueName = `images/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-		return json({ url: imageUrl });
+    try {
+        await r2.send(new PutObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: uniqueName,
+            Body: buffer,
+            ContentType: file.type,
+        }));
 
-	} catch (err) {
-		console.error(err);
-		return json({ error: '업로드 실패' }, { status: 500 });
-	}
-};
+        const imageUrl = `${R2_PUBLIC_URL}/${uniqueName}`;
+        console.log(`[Upload Success] ${imageUrl}`);
+        
+        return json({ url: imageUrl });
+
+    } catch (e) {
+        console.error('R2 Upload Error:', e);
+        return json({ error: '업로드 실패' }, { status: 500 });
+    }
+}
