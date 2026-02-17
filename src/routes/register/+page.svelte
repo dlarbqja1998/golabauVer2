@@ -12,6 +12,9 @@
 
     // 단과대가 바뀌면 학과 목록 업데이트
     $: departments = selectedCollege ? universityData[selectedCollege] : [];
+    
+    // 3. 서버에서 에러 메시지(닉네임 짧음 등) 오면 받기
+    export let form; 
 </script>
 
 <div class="min-h-screen bg-white p-6 flex flex-col justify-center max-w-md mx-auto">
@@ -25,6 +28,23 @@
 
     <form method="POST" use:enhance class="space-y-8">
         
+        <div>
+            <label for="nickname" class="block text-sm font-bold text-gray-700 mb-2">닉네임 <span class="text-red-500">*</span></label>
+            <input 
+                type="text" 
+                name="nickname" 
+                id="nickname" 
+                placeholder="닉네임을 지어주세요 (2~10자)"
+                minlength="2"
+                maxlength="10"
+                required
+                class="w-full appearance-none border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-shadow placeholder-gray-400 text-gray-900"
+            />
+            {#if form?.message}
+                <p class="text-red-500 text-sm mt-1 font-bold">⚠️ {form.message}</p>
+            {/if}
+        </div>
+
         <div>
             <label for="grade" class="block text-sm font-bold text-gray-700 mb-2">학년 <span class="text-red-500">*</span></label>
             <div class="relative">
@@ -78,7 +98,6 @@
                     </div>
                 </label>
             </div>
-            <p class="text-xs text-gray-400 mt-1 pl-1">* 성별을 꼭 선택해주세요.</p>
         </div>
 
         <div class="pt-6 border-t border-gray-100">

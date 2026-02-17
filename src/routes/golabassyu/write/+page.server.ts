@@ -38,9 +38,11 @@ export const actions = {
             // (주의: restaurantId가 실제 DB에 없는 가짜 ID면 에러 날 수 있으므로 예외처리)
             if (restaurantId && restaurantId > 0 && rating > 0) {
                 try {
+                    // ▼▼▼ [수정] userId: locals.user.id 추가! ▼▼▼
                     await db.insert(ratings).values({
                         restaurantId: restaurantId,
                         rating: rating,
+                        userId: locals.user.id, // 👈 이걸 넣어줘야 빨간 줄이 사라집니다.
                     });
                 } catch (e) {
                     console.error("평점 반영 실패 (식당 ID 불일치 등):", e);

@@ -1,76 +1,83 @@
 <script>
 	import './layout.css';
-	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 	import { page } from '$app/stores';
+	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 
 	// Svelte 5 Props
 	let { children } = $props();
 
 	// ==========================================
-	//  [DAE] 사용자 행동 추적기 (CCTV 시스템)
+	//  [DAE] 사용자 행동 추적기 (CCTV 시스템) V2
 	// ==========================================
 	
-	let pageStartTime = Date.now();
-	let currentPath = '';
+	let lastPath = $state(''); // 이전 경로
+	let enterTime = $state(Date.now()); // 진입 시간
 
-	// 1. 로그 전송 함수 (서버 API로 쏘는 역할)
+	// 1. 로그 전송 함수
 	async function sendLog(type, target, meta = {}) {
+		if (typeof window === 'undefined') return;
+
 		try {
-			// 브라우저 환경에서만 실행
-			if (typeof window === 'undefined') return;
-
 			const isMobile = /Mobi/i.test(navigator.userAgent);
-
+			
 			await fetch('/api/log', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					actionType: type,
-					target: target,
+					target: target || 'unknown',
 					metadata: {
 						...meta,
 						url: window.location.href,
-						device: isMobile ? 'mobile' : 'desktop'
+						device: isMobile ? 'mobile' : 'desktop',
+						timestamp: new Date().toISOString()
 					}
 				})
 			});
 		} catch (e) {
-			// 에러 발생해도 유저 사용성에는 영향 없도록 조용히 넘어감
-			console.error('Tracking Error:', e);
+			console.warn('[Log Error]', e);
 		}
 	}
 
-	// 2. 페이지 이동 감지 ($effect 사용)
-	// URL이 바뀔 때마다 실행됨
+	// 2. 페이지 이동 및 체류시간 추적 ($effect)
 	$effect(() => {
-		const newPath = $page.url.pathname;
-		
-		// (A) 이전 페이지 체류시간 전송 (페이지가 실제로 바뀌었을 때만)
-		if (currentPath && currentPath !== newPath) {
-			const duration = (Date.now() - pageStartTime) / 1000;
-			sendLog('dwell_time', currentPath, { duration_sec: duration });
+		const currentPath = $page.url.pathname;
+
+		// (A) 초기 진입
+		if (!lastPath) {
+			lastPath = currentPath;
+			enterTime = Date.now();
+			sendLog('page_view', currentPath);
+			return;
 		}
 
-		// (B) 새 페이지 진입 기록
-		if (currentPath !== newPath) {
-			currentPath = newPath;
-			pageStartTime = Date.now();
-			sendLog('page_view', newPath); 
+		// (B) 페이지 변경 시
+		if (lastPath !== currentPath) {
+			const duration = (Date.now() - enterTime) / 1000;
+			if (duration > 0.5) {
+				sendLog('dwell_time', lastPath, { duration_sec: duration.toFixed(1) });
+			}
+
+			sendLog('page_view', currentPath);
+			lastPath = currentPath;
+			enterTime = Date.now();
 		}
 	});
 
-	// 3. 클릭 감지 (어디를 누르든 다 잡아냄)
+	// 3. 클릭 감지 (노이즈 필터링 적용)
 	function handleGlobalClick(event) {
-		// 클릭한 요소가 버튼, 링크, 입력창인지 확인
-		const target = event.target.closest('a, button, input, select');
+		const el = event.target.closest('a, button, input, select, textarea, [role="button"]');
 		
-		if (target) {
-			// 버튼의 텍스트나 ID 등을 식별자로 사용
-			let label = target.innerText || target.id || target.href || target.name || 'unknown';
-			label = label.substring(0, 50).replace(/\s+/g, ' ').trim(); // 50자 제한 및 공백 정리
-			
-			sendLog('click', label); 
-		}
+		if (!el) return; // 빈 공간 무시
+
+		// 라벨 추출
+		let label = el.getAttribute('aria-label') || el.innerText || el.getAttribute('name') || el.id || el.getAttribute('href') || '';
+		label = label.replace(/\s+/g, ' ').trim().substring(0, 30);
+
+		// ⭐ unknown 필터링 (서버로 안 보냄)
+		if (!label || label.toLowerCase() === 'unknown') return;
+
+		sendLog('click', label);
 	}
 </script>
 
@@ -85,9 +92,9 @@
 <svelte:window 
 	onclick={handleGlobalClick}
 	onbeforeunload={() => {
-		// 탭 닫을 때 마지막 체류시간 전송
-		const duration = (Date.now() - pageStartTime) / 1000;
-		sendLog('dwell_time', currentPath, { duration_sec: duration, exit: true });
+		// 탭 닫을 때 체류시간 전송 (변수명 enterTime으로 통일)
+		const duration = (Date.now() - enterTime) / 1000;
+		sendLog('dwell_time', lastPath, { duration_sec: duration.toFixed(1), exit: true });
 	}} 
 />
 

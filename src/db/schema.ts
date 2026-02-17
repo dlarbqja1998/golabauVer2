@@ -46,7 +46,7 @@ export const golabassyuPosts = pgTable("golabassyu_posts", {
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
 
-// 댓글 테이블 (보여주신 내용 반영 + 유저 연결)
+// 댓글 테이블
 export const golabassyuComments = pgTable("golabassyu_comments", {
     id: serial("id").primaryKey(),
     postId: integer("post_id").notNull().references(() => golabassyuPosts.id, { onDelete: 'cascade' }),
@@ -55,7 +55,7 @@ export const golabassyuComments = pgTable("golabassyu_comments", {
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
 
-// 좋아요 기록 (중복 좋아요 방지 및 선호도 분석용)
+// 좋아요 기록
 export const postLikes = pgTable("post_likes", {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull(),
@@ -84,18 +84,22 @@ export const restaurants = pgTable("restaurants", {
     averageRating: real("average_rating").default(0),
 });
 
+// ▼▼▼ [수정됨] userId 추가 ▼▼▼
 export const ratings = pgTable("ratings", {
     id: serial("id").primaryKey().notNull(),
     restaurantId: bigint("restaurant_id", { mode: "number" }).notNull(),
+    userId: integer("user_id").notNull(), // ★ 누가 별점 줬는지 기록
     rating: integer("rating").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
     check("ratings_rating_check", sql`(rating >= 1) AND (rating <= 5)`),
 ]);
 
+// ▼▼▼ [수정됨] userId 추가 ▼▼▼
 export const keywordReviews = pgTable("keyword_reviews", {
     id: bigserial("id", { mode: "bigint" }).primaryKey().notNull(),
     restaurantId: bigint("restaurant_id", { mode: "number" }).notNull(),
+    userId: integer("user_id").notNull(), // ★ 누가 키워드 눌렀는지 기록
     keyword: varchar("keyword", { length: 255 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -105,6 +109,7 @@ export const keywordReviews = pgTable("keyword_reviews", {
             name: "fk_restaurant"
         }).onDelete("cascade"),
 ]);
+
 // [DAE 핵심] 사용자 행동 로그 테이블 (CCTV 저장소)
 export const userLogs = pgTable("user_logs", {
     id: serial("id").primaryKey(),
@@ -118,7 +123,6 @@ export const userLogs = pgTable("user_logs", {
     target: text("target"),             // '/my', '학식버튼', '전화하기' 등
     
     // 3. 디테일 (유연한 확장을 위해 JSON 사용)
-    // 예: { "duration": 45, "device": "mobile", "scroll_depth": 80 }
     metadata: json("metadata"),
 
     // 4. 언제?
