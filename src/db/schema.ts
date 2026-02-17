@@ -34,7 +34,7 @@ export const golabassyuPosts = pgTable("golabassyu_posts", {
     id: serial("id").primaryKey(),
     // 누가 썼는지 기록 (데이터 분석용)
     userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-    
+    restaurantId: bigint("restaurant_id", { mode: "number" }),
     restaurantName: text("restaurant"), // 식당 이름
     rating: integer("rating").default(0), // 별점
     title: text("title").notNull(),

@@ -26,6 +26,7 @@ export const actions = {
             await db.insert(golabassyuPosts).values({
                 userId: locals.user.id, // 👈 여기가 핵심! (1 대신 진짜 ID)
                 restaurantName: restaurantName,
+                restaurantId: restaurantId,
                 rating: rating,
                 title: title,
                 content: content,

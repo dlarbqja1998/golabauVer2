@@ -1,17 +1,29 @@
 <script>
-    import { ChevronLeft, Heart, MessageCircle, PenTool, MapPin, Star, X, ArrowUp, Loader2 } from 'lucide-svelte';
+    import { ChevronLeft, Heart, MessageCircle, PenTool, MapPin, Star, X, ArrowUp, Loader2, MoreVertical, Trash2, Edit2 } from 'lucide-svelte';
     import { fade, fly } from 'svelte/transition';
+    import { enhance } from '$app/forms';
+    import { page } from '$app/stores';
+    import { onMount } from 'svelte';
 
     // 서버 데이터
     let { data } = $props();
 
     // 로컬 상태
     let localPosts = $state(data.posts || []);
+    let currentUser = $derived(data.user); // 로그인 유저 정보
 
     // 탭 & 정렬
-    const tabs = ['전체', '신정문앞', '욱일', '조치원역'];
+    const tabs = ['전체', '내 글', '신정문앞', '욱일', '조치원역' ]; // [추가] '내 글' 탭
     let activeTab = $state('전체'); 
     let activeSort = $state('latest'); 
+
+    // [추가] URL 파라미터로 탭 자동 선택 (예: /golabassyu?tab=my)
+    onMount(() => {
+        const tabParam = $page.url.searchParams.get('tab');
+        if (tabParam === 'my') {
+            activeTab = '내 글';
+        }
+    });
 
     // 더보기 펼침 상태
     let expandedPosts = $state(new Set());
@@ -98,10 +110,38 @@
         }
     }
 
-    // 필터링
+    // [추가] 수정/삭제 메뉴 상태 관리
+    let activeMenuId = $state(null);
+    function toggleMenu(id) {
+        if (activeMenuId === id) activeMenuId = null;
+        else activeMenuId = id;
+    }
+
+    // [추가] 수정 모달 상태 관리
+    let isEditModalOpen = $state(false);
+    let editPostId = $state(null);
+    let editContent = $state('');
+    let editRating = $state(0); // 수정할 별점 상태
+
+    function openEditModal(post) {
+        editPostId = post.id;
+        editContent = post.content;
+        editRating = post.rating || 0; //현재 별점 불러오기
+        isEditModalOpen = true;
+        activeMenuId = null; // 메뉴 닫기
+    }
+
+    // 필터링 로직 수정 ('내 글' 탭 처리)
     let filteredPosts = $derived.by(() => {
         let result = localPosts;
-        if (activeTab !== '전체') result = result.filter(p => p.area === activeTab);
+        
+        if (activeTab === '내 글') {
+            // 로그인 안했으면 빈 배열, 했으면 내 글만(isMine)
+            if (!currentUser) result = [];
+            else result = result.filter(p => p.isMine);
+        } else if (activeTab !== '전체') {
+            result = result.filter(p => p.area === activeTab);
+        }
         
         if (activeSort === 'likes') return [...result].sort((a, b) => (b.likes || 0) - (a.likes || 0));
         return [...result].sort((a, b) => b.id - a.id);
@@ -118,7 +158,6 @@
         return `${Math.floor(hours / 24)}일 전`;
     }
 
-    // [추가] 이미지 문자열을 배열로 변환하는 함수
     function getImages(imgString) {
         if (!imgString) return [];
         return imgString.split(',').map(s => s.trim()).filter(Boolean);
@@ -141,21 +180,31 @@
         </div>
         <div class="flex px-4 gap-4 overflow-x-auto no-scrollbar pb-3">
             {#each tabs as tab}
-                <button onclick={() => activeTab = tab} class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all {activeTab === tab ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-500'}">{tab}</button>
+                <button onclick={() => activeTab = tab} class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all {activeTab === tab ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-500'}">
+                    {#if tab === '내 글'}
+                        🔒 {tab}
+                    {:else}
+                        {tab}
+                    {/if}
+                </button>
             {/each}
         </div>
     </header>
 
-    <main class="flex flex-col gap-4 py-4">
+    <main class="flex flex-col gap-4 py-4" onclick={() => activeMenuId = null}>
         {#if filteredPosts.length === 0}
             <div class="py-20 text-center text-gray-400 text-sm">
-                <p>아직 올라온 맛집 후기가 없어요 😢</p>
+                {#if activeTab === '내 글' && !currentUser}
+                    <p>로그인이 필요합니다 🥲</p>
+                {:else}
+                    <p>해당하는 게시글이 없어요 😢</p>
+                {/if}
             </div>
         {:else}
             {#each filteredPosts as post (post.id)}
                 {@const images = getImages(post.imageUrl)}
                 
-                <article class="bg-white flex flex-col shadow-sm border-y border-gray-100 md:border md:rounded-2xl md:mx-4" transition:fade>
+                <article class="bg-white flex flex-col shadow-sm border-y border-gray-100 md:border md:rounded-2xl md:mx-4 relative" transition:fade>
                     
                     <div class="flex items-center justify-between p-3">
                         <div class="flex items-center gap-2">
@@ -163,13 +212,48 @@
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-sm font-bold text-gray-900">{post.writerName || '익명'}</span>
                                     <span class="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-bold">{post.writerBadge || '신입생'}</span>
+                                    {#if post.isMine}
+                                        <span class="text-[9px] bg-red-100 text-red-500 px-1 rounded font-bold">ME</span>
+                                    {/if}
                                 </div>
                                 <span class="text-[10px] text-gray-400">{timeAgo(post.createdAt)}</span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
-                            <MapPin size={12} />
-                            <span class="text-xs font-bold">{post.restaurant}</span>
+                        
+                        <div class="flex items-center gap-2">
+                            {#if post.restaurantId}
+                                <a href="/restaurant/{post.restaurantId}" class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors active:scale-95 group">
+                                    <MapPin size={12} class="text-gray-400 group-hover:text-blue-500 transition-colors" />
+                                    <span class="text-xs font-bold text-gray-700 group-hover:text-blue-600 group-hover:underline decoration-blue-200 underline-offset-2 transition-colors">{post.restaurant}</span>
+                                </a>
+                            {:else}
+                                <div class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
+                                    <MapPin size={12} class="text-gray-400" />
+                                    <span class="text-xs font-bold">{post.restaurant}</span>
+                                </div>
+                            {/if}
+
+                            {#if post.isMine}
+                                <div class="relative">
+                                    <button onclick={(e) => { e.stopPropagation(); toggleMenu(post.id); }} class="p-1 text-gray-400 hover:text-black transition-colors rounded-full hover:bg-gray-100">
+                                        <MoreVertical size={16} />
+                                    </button>
+                                    
+                                    {#if activeMenuId === post.id}
+                                        <div class="absolute right-0 top-8 bg-white shadow-xl border border-gray-100 rounded-lg overflow-hidden w-28 z-20 flex flex-col" transition:fade={{duration: 100}}>
+                                            <button onclick={() => openEditModal(post)} class="px-3 py-2.5 text-xs text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                                                <Edit2 size={14} /> 수정하기
+                                            </button>
+                                            <form action="?/deletePost" method="POST" use:enhance>
+                                                <input type="hidden" name="postId" value={post.id}>
+                                                <button class="w-full px-3 py-2.5 text-xs text-left text-red-500 hover:bg-red-50 flex items-center gap-2">
+                                                    <Trash2 size={14} /> 삭제하기
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/if}
                         </div>
                     </div>
 
@@ -244,6 +328,64 @@
        class="fixed bottom-24 right-5 w-14 h-14 bg-[#DC143C] rounded-full shadow-xl flex items-center justify-center text-white hover:bg-[#C01134] transition-colors z-40 active:scale-95">
         <PenTool size={24} />
     </a>
+
+    {#if isEditModalOpen}
+        <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" transition:fly={{ y: 20 }}>
+                <h3 class="font-bold text-lg mb-4 text-gray-900">게시글 수정</h3>
+                
+                <form action="?/updatePost" method="POST" use:enhance={() => {
+                    return async ({ result }) => {
+                        if (result.type === 'success') {
+                            isEditModalOpen = false;
+                            // 로컬 상태 업데이트 (내용 + 별점 즉시 반영)
+                            const p = localPosts.find(x => x.id === editPostId);
+                            if(p) {
+                                p.content = editContent;
+                                p.rating = editRating; // 별점도 업데이트
+                            }
+                            alert('수정되었습니다! ✨');
+                        }
+                    };
+                }}>
+                    <input type="hidden" name="postId" value={editPostId}>
+                    
+                    <div class="flex flex-col gap-2 mb-4">
+                        <label class="text-xs font-bold text-gray-500 ml-1">별점 수정</label>
+                        <div class="flex gap-1">
+                            {#each [1, 2, 3, 4, 5] as star}
+                                <button 
+                                    type="button" 
+                                    onclick={() => editRating = star}
+                                    class="p-1 transition-transform active:scale-90"
+                                >
+                                    <Star 
+                                        size={28} 
+                                        fill={star <= editRating ? "#FFD700" : "none"} 
+                                        color={star <= editRating ? "#FFD700" : "#E5E7EB"} 
+                                        strokeWidth={2}
+                                    />
+                                </button>
+                            {/each}
+                        </div>
+                        <input type="hidden" name="rating" value={editRating}>
+                    </div>
+
+                    <textarea 
+                        name="content" 
+                        bind:value={editContent}
+                        class="w-full h-32 p-3 bg-gray-50 border border-gray-200 rounded-xl resize-none text-sm outline-none focus:border-black mb-4 focus:bg-white transition-colors"
+                        placeholder="수정할 내용을 입력하세요..."
+                    ></textarea>
+                    
+                    <div class="flex gap-2">
+                        <button type="button" onclick={() => isEditModalOpen = false} class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-sm text-gray-600 hover:bg-gray-200">취소</button>
+                        <button class="flex-1 py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800">수정 완료</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {/if}
 
     {#if isCommentOpen}
         <div class="fixed inset-0 bg-black/50 transition-opacity" 
