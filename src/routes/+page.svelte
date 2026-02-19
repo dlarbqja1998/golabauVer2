@@ -5,7 +5,19 @@
 	import { X, Mail, Send } from 'lucide-svelte'; 
 
 	let { data } = $props();
+	
+	// 1. 공통 데이터
 	let categories = $derived(data?.maincategory || []);
+
+	// ▼▼▼ [학식 로직] ▼▼▼
+	let todayMenu = $derived(data?.todayMenu);
+	let activeTab = $state('student'); // 'student' | 'faculty'
+
+	function formatDate(dateStr) {
+		if (!dateStr) return '';
+		const parts = dateStr.split('.');
+		return `${Number(parts[1])}.${Number(parts[2])}`;
+	}
 
 	// ▼▼▼ [버스 로직] ▼▼▼
 	let nextToStation = $state('운행 종료');
@@ -55,6 +67,7 @@
 	}
 
 	onMount(() => {
+		// 버스 시간 업데이트
 		updateBusTime();
 		const interval = setInterval(updateBusTime, 60000);
 		return () => clearInterval(interval);
@@ -103,6 +116,25 @@
 	}
 </script>
 
+{#snippet MenuCard(title, items, bgColor, textColor)}
+	<div class={`p-4 rounded-xl border ${bgColor} border-opacity-50`}>
+		<h4 class={`text-sm font-bold mb-2 ${textColor} flex items-center`}>
+			{title}
+		</h4>
+		{#if items.length > 0}
+			<ul class="space-y-1">
+				{#each items as item}
+					<li class="text-sm text-gray-700 font-['Noto_Sans_KR'] leading-relaxed">
+						{item}
+					</li>
+				{/each}
+			</ul>
+		{:else}
+			<p class="text-xs text-gray-400">운영 없음</p>
+		{/if}
+	</div>
+{/snippet}
+
 <div class="flex flex-col items-center w-full min-h-screen bg-white max-w-md mx-auto relative shadow-sm">
 	
 	<header class="sticky top-0 z-20 w-full bg-white/90 backdrop-blur-sm border-b border-gray-50 px-4 py-3 flex justify-end items-center">
@@ -115,7 +147,7 @@
 		</button>
 	</header>
 
-	<div class="mt-8 mb-8 text-center animate-fade-in px-4">
+	<div class="mt-4 mb-8 text-center animate-fade-in px-4">
 		<h1 class="text-5xl font-['Jua'] text-gray-900 mb-2">
 			골라바유!
 		</h1>
@@ -124,9 +156,75 @@
 		</p>
 	</div>
 
-	<div class="w-full px-4 mb-6">
-		<div class="w-full h-24 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-center text-blue-400 font-bold shadow-sm">
-			새로운 컨텐츠 자리 (배너/이벤트)
+	<div class="w-full px-4 mb-6 animate-fade-in">
+		<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+			<div class="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
+				<h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+					🍽️ 오늘의 학식
+					{#if todayMenu}
+						<span class="text-xs font-normal text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+							{formatDate(todayMenu.date)} ({todayMenu.day})
+						</span>
+					{/if}
+				</h2>
+			</div>
+
+			{#if todayMenu}
+				<div class="flex border-b border-gray-100">
+					<button 
+						class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'student' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
+						onclick={() => activeTab = 'student'}
+					>
+						학생식당
+						{#if activeTab === 'student'}
+							<div class="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"></div>
+						{/if}
+					</button>
+					<button 
+						class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'faculty' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
+						onclick={() => activeTab = 'faculty'}
+					>
+						교직원식당
+						{#if activeTab === 'faculty'}
+							<div class="absolute bottom-0 left-0 w-full h-0.5 bg-green-500"></div>
+						{/if}
+					</button>
+				</div>
+
+				<div class="p-4 bg-white min-h-[200px]">
+					{#if activeTab === 'student'}
+						<div class="space-y-3 animate-fade-in">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
+							</div>
+							<div class="grid grid-cols-1 gap-2">
+								{@render MenuCard('🍚 한식', todayMenu.student.korean, 'bg-orange-50', 'text-orange-600')}
+								{@render MenuCard('🍛 일품', todayMenu.student.special, 'bg-blue-50', 'text-blue-600')}
+								{@render MenuCard('🍜 분식', todayMenu.student.snack, 'bg-yellow-50', 'text-yellow-600')}
+							</div>
+							<div class="flex items-center gap-2 mt-4 mb-1">
+								<span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
+							</div>
+							{@render MenuCard('🍱 석식', todayMenu.student.dinner, 'bg-purple-50', 'text-purple-600')}
+						</div>
+					{:else}
+						<div class="space-y-3 animate-fade-in">
+							<div class="flex items-center gap-2 mb-1">
+								<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
+							</div>
+							{@render MenuCard('🥘 교직원 중식', todayMenu.faculty.lunch, 'bg-green-50', 'text-green-700')}
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div class="py-10 text-center flex flex-col items-center justify-center gap-2">
+					<div class="text-4xl">😴</div>
+					<p class="text-gray-400 text-sm font-['Noto_Sans_KR']">
+						오늘은 학식 운영 정보가 없어요<br>
+						(주말 혹은 공휴일입니다)
+					</p>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -269,7 +367,7 @@
 		from { opacity: 0; transform: translateY(10px); }
 		to { opacity: 1; transform: translateY(0); }
 	}
-	.animate-fade-in-up { animation: fade-in-up 0.3s ease-out; }
+	.animate-fade-in-up { animation: fade-in-up 0.5s ease-out; }
 	
 	@keyframes fade-in {
 		from { opacity: 0; }
