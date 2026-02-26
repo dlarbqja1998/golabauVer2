@@ -2,16 +2,40 @@
 	import { getCategoryIconPath } from '$lib/data/categoryIcons.js';
 	import { getTodaySchedule } from '$lib/data/busSchedule'; 
 	import { onMount } from 'svelte';
-	import { X, Mail, Send } from 'lucide-svelte'; 
+	import { X, Mail, Send, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { slide } from 'svelte/transition';
 
 	let { data } = $props();
 	
-	// 1. 공통 데이터
 	let categories = $derived(data?.maincategory || []);
 
 	// ▼▼▼ [학식 로직] ▼▼▼
 	let todayMenu = $derived(data?.todayMenu);
-	let activeTab = $state('student'); // 'student' | 'faculty'
+	let activeTab = $state('student');
+	let isMenuExpanded = $state(false);
+
+	// 🔥 미니멀한 메뉴 미리보기 텍스트
+	let simpleTeaser = $derived.by(() => {
+		if (!todayMenu) return "";
+		
+		const koreanItems = todayMenu.student?.korean || [];
+		const specialItems = todayMenu.student?.special || [];
+		const allLunchItems = [...koreanItems, ...specialItems];
+
+		// 밥, 김치류 제외하고 메인 반찬만 깔끔하게 추출
+		const tastyItems = allLunchItems.filter(item => 
+			!item.includes('밥') && 
+			!item.includes('김치') && 
+			!item.includes('단무지') &&
+			!item.includes('깍두기')
+		);
+
+		// 반찬 정보가 없으면 아예 빈 칸 반환 (중복 멘트 제거)
+		if (tastyItems.length === 0) return "";
+		
+		// 쉼표로 심플하게 나열하고 끝에 ... 붙이기
+		return tastyItems.slice(0, 3).join(', ') + (tastyItems.length > 3 ? '...' : '');
+	});
 
 	function formatDate(dateStr) {
 		if (!dateStr) return '';
@@ -43,7 +67,6 @@
 		const now = new Date();
 		const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-		// 1. 학교 출발
 		const nextStationBus = schedule.toStation.find(t => timeToMinutes(t) > currentMinutes);
 		if (nextStationBus) {
 			const diff = timeToMinutes(nextStationBus) - currentMinutes;
@@ -54,7 +77,6 @@
 			isOsongToStation = false;
 		}
 
-		// 2. 역 출발
 		const nextSchoolBus = schedule.toSchool.find(t => timeToMinutes(t) > currentMinutes);
 		if (nextSchoolBus) {
 			const diff = timeToMinutes(nextSchoolBus) - currentMinutes;
@@ -67,7 +89,6 @@
 	}
 
 	onMount(() => {
-		// 버스 시간 업데이트
 		updateBusTime();
 		const interval = setInterval(updateBusTime, 60000);
 		return () => clearInterval(interval);
@@ -87,19 +108,12 @@
 			alert('내용을 입력해주세요!');
 			return;
 		}
-
 		isSending = true;
-
 		try {
 			const res = await fetch('/api/contact', {
 				method: 'POST',
-				body: JSON.stringify({
-					category: contactCategory,
-					content: contactContent,
-					contact: contactInfo
-				})
+				body: JSON.stringify({ category: contactCategory, content: contactContent, contact: contactInfo })
 			});
-
 			if (res.ok) {
 				alert('소중한 의견 감사합니다! 🙇‍♂️');
 				isContactModalOpen = false;
@@ -121,7 +135,7 @@
 		<h4 class={`text-sm font-bold mb-2 ${textColor} flex items-center`}>
 			{title}
 		</h4>
-		{#if items.length > 0}
+		{#if items && items.length > 0}
 			<ul class="space-y-1">
 				{#each items as item}
 					<li class="text-sm text-gray-700 font-['Noto_Sans_KR'] leading-relaxed">
@@ -130,7 +144,7 @@
 				{/each}
 			</ul>
 		{:else}
-			<p class="text-xs text-gray-400">운영 없음</p>
+			<p class="text-xs text-gray-400">메뉴 정보 없음</p>
 		{/if}
 	</div>
 {/snippet}
@@ -148,18 +162,15 @@
 	</header>
 
 	<div class="mt-4 mb-8 text-center animate-fade-in px-4">
-		<h1 class="text-5xl font-['Jua'] text-gray-900 mb-2">
-			골라바유!
-		</h1>
-		<p class="text-gray-500 text-sm font-medium font-['Noto_Sans_KR']">
-			오늘 뭐 먹지? 고민될 땐 골라바유!
-		</p>
+		<h1 class="text-5xl font-['Jua'] text-[#8B0029] mb-2">골라바유!</h1>
+		<p class="text-[#6b0d0d]/50 text-sm font-medium font-['Noto_Sans_KR']">오늘 뭐 먹지? 고민될 땐 골라바유!</p>
 	</div>
 
 	<div class="w-full px-4 mb-6 animate-fade-in">
-		<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-			<div class="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-				<h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+		<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col transition-all">
+			
+			<div class="px-5 py-3 border-b border-gray-50 flex justify-between items-center">
+				<h2 class="font-bold text-lg text-gray-800 flex items-center gap-2 font-['Jua']">
 					🍽️ 오늘의 학식
 					{#if todayMenu}
 						<span class="text-xs font-normal text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
@@ -170,54 +181,81 @@
 			</div>
 
 			{#if todayMenu}
-				<div class="flex border-b border-gray-100">
+				{#if !isMenuExpanded}
 					<button 
-						class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'student' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
-						onclick={() => activeTab = 'student'}
+						class="w-full flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors py-4"
+						onclick={() => isMenuExpanded = true}
 					>
-						학생식당
-						{#if activeTab === 'student'}
-							<div class="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"></div>
+						{#if simpleTeaser}
+							<p class="text-base text-gray-800 font-medium font-['Noto_Sans_KR'] px-4 text-center mb-2">
+								{simpleTeaser}
+							</p>
 						{/if}
+						<div class="text-gray-300 hover:text-gray-500 transition-colors">
+							<ChevronDown size={24} />
+						</div>
 					</button>
-					<button 
-						class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'faculty' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
-						onclick={() => activeTab = 'faculty'}
-					>
-						교직원식당
-						{#if activeTab === 'faculty'}
-							<div class="absolute bottom-0 left-0 w-full h-0.5 bg-green-500"></div>
-						{/if}
-					</button>
-				</div>
+				{/if}
 
-				<div class="p-4 bg-white min-h-[200px]">
-					{#if activeTab === 'student'}
-						<div class="space-y-3 animate-fade-in">
-							<div class="flex items-center gap-2 mb-1">
-								<span class="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
-							</div>
-							<div class="grid grid-cols-1 gap-2">
-								{@render MenuCard('🍚 한식', todayMenu.student.korean, 'bg-orange-50', 'text-orange-600')}
-								{@render MenuCard('🍛 일품', todayMenu.student.special, 'bg-blue-50', 'text-blue-600')}
-								{@render MenuCard('🍜 분식', todayMenu.student.snack, 'bg-yellow-50', 'text-yellow-600')}
-							</div>
-							<div class="flex items-center gap-2 mt-4 mb-1">
-								<span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
-							</div>
-							{@render MenuCard('🍱 석식', todayMenu.student.dinner, 'bg-purple-50', 'text-purple-600')}
+				{#if isMenuExpanded}
+					<div transition:slide={{ duration: 300 }}>
+						<div class="flex border-b border-gray-100">
+							<button 
+								class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'student' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
+								onclick={() => activeTab = 'student'}
+							>
+								학생식당
+								{#if activeTab === 'student'}
+									<div class="absolute bottom-0 left-0 w-full h-0.5 bg-orange-500"></div>
+								{/if}
+							</button>
+							<button 
+								class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'faculty' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
+								onclick={() => activeTab = 'faculty'}
+							>
+								교직원식당
+								{#if activeTab === 'faculty'}
+									<div class="absolute bottom-0 left-0 w-full h-0.5 bg-green-500"></div>
+								{/if}
+							</button>
 						</div>
-					{:else}
-						<div class="space-y-3 animate-fade-in">
-							<div class="flex items-center gap-2 mb-1">
-								<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
-							</div>
-							{@render MenuCard('🥘 교직원 중식', todayMenu.faculty.lunch, 'bg-green-50', 'text-green-700')}
+
+						<div class="p-4 bg-white min-h-[200px]">
+							{#if activeTab === 'student'}
+								<div class="space-y-3 animate-fade-in">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
+									</div>
+									<div class="grid grid-cols-1 gap-2">
+										{@render MenuCard('🍚 한식', todayMenu.student.korean, 'bg-orange-50', 'text-orange-600')}
+										{@render MenuCard('🍛 일품', todayMenu.student.special, 'bg-blue-50', 'text-blue-600')}
+										{@render MenuCard('🍜 분식', todayMenu.student.snack, 'bg-yellow-50', 'text-yellow-600')}
+									</div>
+									<div class="flex items-center gap-2 mt-4 mb-1">
+										<span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
+									</div>
+									{@render MenuCard('🍱 석식', todayMenu.student.dinner, 'bg-purple-50', 'text-purple-600')}
+								</div>
+							{:else}
+								<div class="space-y-3 animate-fade-in">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
+									</div>
+									{@render MenuCard('🥘 교직원 중식', todayMenu.faculty.lunch, 'bg-green-50', 'text-green-700')}
+								</div>
+							{/if}
 						</div>
-					{/if}
-				</div>
+						
+						<button 
+							class="w-full py-2 bg-gray-50 flex justify-center items-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors border-t border-gray-100"
+							onclick={() => isMenuExpanded = false}
+						>
+							<ChevronUp size={24} />
+						</button>
+					</div>
+				{/if}
 			{:else}
-				<div class="py-10 text-center flex flex-col items-center justify-center gap-2">
+				<div class="py-8 text-center flex flex-col items-center justify-center gap-2">
 					<div class="text-4xl">😴</div>
 					<p class="text-gray-400 text-sm font-['Noto_Sans_KR']">
 						오늘은 학식 운영 정보가 없어요<br>
@@ -231,7 +269,7 @@
 	<div class="w-full px-4 mb-8">
 		<button 
 			onclick={() => isBusModalOpen = true}
-			class="w-full bg-white border border-gray-100 rounded-2xl p-5 shadow-sm active:scale-[0.98] transition-transform text-left group"
+			class="w-full bg-white border border-gray-100 rounded-xl p-5 shadow-sm active:scale-[0.98] transition-transform text-left group"
 		>
 			<div class="flex justify-between items-center mb-4">
 				<h2 class="font-bold text-lg text-gray-800 flex items-center gap-2 font-['Jua']">
@@ -312,7 +350,6 @@
 						<X size={24} />
 					</button>
 				</div>
-
 				<div class="mb-4">
 					<label class="block text-xs font-bold text-gray-500 mb-2">어떤 내용을 보내시나요?</label>
 					<div class="flex flex-wrap gap-2">
@@ -326,7 +363,6 @@
 						{/each}
 					</div>
 				</div>
-
 				<div class="mb-4">
 					<textarea 
 						bind:value={contactContent}
@@ -334,7 +370,6 @@
 						class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl resize-none text-sm outline-none focus:border-black focus:bg-white transition-colors placeholder-gray-400"
 					></textarea>
 				</div>
-
 				<div class="mb-6">
 					<label class="block text-xs font-bold text-gray-500 mb-2">답변 받을 연락처 (선택)</label>
 					<input 
@@ -344,7 +379,6 @@
 						class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-black focus:bg-white transition-colors"
 					/>
 				</div>
-
 				<button 
 					onclick={sendInquiry} 
 					disabled={isSending}

@@ -40,7 +40,7 @@
 				type="text" 
 				name="q" 
 				value={query}
-				placeholder="식당 이름이나 메뉴(예: 돈까스) 검색" 
+				placeholder="식당 이름 검색" 
 				class="w-full h-12 pl-12 pr-4 rounded-xl bg-gray-50 border border-gray-200 text-gray-800 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all text-sm font-medium shadow-sm"
 				autocomplete="off"
 			/>
@@ -110,7 +110,7 @@
 			<div class="py-24 text-center flex flex-col items-center justify-center gap-4 opacity-40">
 				<Search size={48} class="text-gray-300" />
 				<p class="text-gray-400 font-medium text-sm">
-					먹고 싶은 메뉴나<br>식당 이름을 검색해보세요!
+					<br>식당 이름을 검색해보세요!
 				</p>
 			</div>
 		{/if}

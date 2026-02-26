@@ -1,5 +1,7 @@
 <script>
     import { ChevronLeft, Search, MapPin, Image as ImageIcon, Star, X, Loader2 } from 'lucide-svelte';
+    import { page } from '$app/stores'; // 🔥 URL 파라미터 읽기용
+    import { onMount } from 'svelte';
     
     let searchTerm = $state('');
     let searchResults = $state([]);
@@ -12,9 +14,27 @@
     let isUploading = $state(false);
     let formElement; 
 
+    // 🔥 고정 상태 관리
+    let isLocked = $state(false);
+    let returnToUrl = $state('');
+
+    onMount(() => {
+        // 상세페이지에서 넘겨준 파라미터들을 낚아챕니다!
+        const paramId = $page.url.searchParams.get('restaurantId');
+        const paramName = $page.url.searchParams.get('restaurantName');
+        const paramReturn = $page.url.searchParams.get('returnTo');
+
+        if (paramId && paramName) {
+            selectedRestaurant = { name: paramName, id: Number(paramId), category: '' };
+            isLocked = true; // 식당 변경 불가 모드로 잠금!
+        }
+        if (paramReturn) {
+            returnToUrl = paramReturn;
+        }
+    });
+
     async function executeSearch() {
         if (searchTerm.length < 1) return alert('식당 이름을 입력해주세요!');
-        
         try {
             const res = await fetch(`/api/search-restaurant?q=${searchTerm}`);
             if (res.ok) {
@@ -31,7 +51,6 @@
     function selectRestaurant(item) {
         const rName = item.placeName || item.name;
         selectedRestaurant = { name: rName, id: item.id, category: item.mainCategory || item.category };
-        
         searchTerm = rName;
         searchResults = [];
         hasSearched = false;
@@ -44,28 +63,19 @@
     async function handleImageUpload(e) {
         const files = e.target.files;
         if (!files || files.length === 0) return;
-
         isUploading = true;
 
         for (let i = 0; i < files.length; i++) {
             const formData = new FormData();
             formData.append('image', files[i]);
-
             try {
                 const res = await fetch('/api/upload', { method: 'POST', body: formData });
                 const data = await res.json();
-                
-                if (data.url) {
-                    uploadedUrls.push(data.url);
-                } else {
-                    console.error('업로드 실패:', data);
-                }
+                if (data.url) uploadedUrls.push(data.url);
             } catch (err) {
-                console.error('에러 발생:', err);
                 alert('이미지 업로드 중 오류가 발생했습니다.');
             }
         }
-        
         isUploading = false;
     }
 
@@ -85,33 +95,24 @@
 <div class="flex flex-col w-full min-h-screen bg-white max-w-md mx-auto relative pb-24">
     
     <header class="flex items-center justify-between p-4 bg-white sticky top-0 z-20">
-        <a href="/golabassyu" class="p-2 -ml-2 text-gray-800">
+        <a href={returnToUrl || "/golabassyu"} class="p-2 -ml-2 text-gray-800">
             <ChevronLeft size={24} />
         </a>
         <h1 class="text-lg font-bold font-['Jua']">새 게시물</h1>
         
-        <button 
-            type="button" 
-            onclick={validateAndSubmit}
-            class="text-blue-500 font-bold text-sm px-2 hover:bg-blue-50 rounded-lg transition-colors"
-        >
+        <button type="button" onclick={validateAndSubmit} class="text-blue-500 font-bold text-sm px-2 hover:bg-blue-50 rounded-lg transition-colors">
             공유
         </button>
     </header>
 
-    <form 
-        bind:this={formElement}
-        id="instaForm" 
-        method="POST" 
-        action="?/createPost" 
-        class="flex flex-col flex-1"
-    >
+    <form bind:this={formElement} id="instaForm" method="POST" action="?/createPost" class="flex flex-col flex-1">
         
         <input type="hidden" name="restaurantName" value={selectedRestaurant.name} />
         <input type="hidden" name="restaurantId" value={selectedRestaurant.id} />
         <input type="hidden" name="rating" value={rating} />
         <input type="hidden" name="imageUrl" value={uploadedUrls.join(',')} />
         <input type="hidden" name="title" value={selectedRestaurant.name ? selectedRestaurant.name + " 후기" : "맛집 후기"} />
+        <input type="hidden" name="returnTo" value={returnToUrl} />
 
         <div class="w-full bg-gray-50 border-b border-gray-100 relative group overflow-hidden">
             {#if uploadedUrls.length > 0}
@@ -119,17 +120,12 @@
                     {#each uploadedUrls as url, i}
                         <div class="relative min-w-[200px] h-[200px] snap-center shrink-0">
                             <img src={url} alt="preview" class="w-full h-full object-cover rounded-lg shadow-sm" />
-                            <button 
-                                type="button" 
-                                onclick={() => removeImage(i)} 
-                                class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500 transition-colors"
-                            >
+                            <button type="button" onclick={() => removeImage(i)} class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500">
                                 <X size={16} />
                             </button>
                         </div>
                     {/each}
-
-                    <label class="flex flex-col items-center justify-center min-w-[100px] h-[200px] bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors shrink-0 border-2 border-dashed border-gray-300">
+                    <label class="flex flex-col items-center justify-center min-w-[100px] h-[200px] bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 shrink-0 border-2 border-dashed border-gray-300">
                         {#if isUploading}
                             <Loader2 class="animate-spin text-gray-400" size={24} />
                         {:else}
@@ -158,24 +154,13 @@
                 <div class="flex gap-2">
                     {#each [1, 2, 3, 4, 5] as star}
                         <button type="button" onclick={() => setRating(star)} class="transition-transform active:scale-110">
-                            <Star 
-                                size={32} 
-                                fill={star <= rating ? "#FFD700" : "none"} 
-                                color={star <= rating ? "#FFD700" : "#E5E7EB"} 
-                                strokeWidth={2}
-                            />
+                            <Star size={32} fill={star <= rating ? "#FFD700" : "none"} color={star <= rating ? "#FFD700" : "#E5E7EB"} strokeWidth={2} />
                         </button>
                     {/each}
                 </div>
             </div>
 
-            <textarea 
-                name="content" 
-                placeholder="문구 입력..." 
-                rows="3"
-                class="w-full text-sm outline-none resize-none placeholder-gray-400 font-['Noto_Sans_KR']"
-                required
-            ></textarea>
+            <textarea name="content" placeholder="문구 입력..." rows="3" class="w-full text-sm outline-none resize-none placeholder-gray-400 font-['Noto_Sans_KR']" required></textarea>
 
             <div class="h-px w-full bg-gray-100"></div>
 
@@ -193,36 +178,23 @@
                             <MapPin size={16} class="text-blue-500" />
                             <span class="text-sm font-bold text-blue-600">{selectedRestaurant.name}</span>
                         </div>
-                        <button type="button" onclick={() => selectedRestaurant = {name:'', id:0, category:''}} class="text-xs text-gray-400 underline">변경</button>
+                        {#if !isLocked}
+                            <button type="button" onclick={() => selectedRestaurant = {name:'', id:0, category:''}} class="text-xs text-gray-400 underline">변경</button>
+                        {:else}
+                            <span class="text-[10px] font-bold text-blue-400 bg-white px-2 py-0.5 rounded border border-blue-100">고정됨</span>
+                        {/if}
                     </div>
                 {:else}
                     <div class="flex gap-2">
-                        <input 
-                            type="text" 
-                            bind:value={searchTerm}
-                            placeholder="식당 검색하기" 
-                            class="flex-1 p-2 bg-gray-50 rounded-lg text-sm outline-none"
-                            onkeydown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault(); 
-                                    executeSearch();
-                                }
-                            }}
-                        />
-                        <button type="button" onclick={executeSearch} class="p-2 bg-gray-800 text-white rounded-lg">
-                            <Search size={16} />
-                        </button>
+                        <input type="text" bind:value={searchTerm} placeholder="식당 검색하기" class="flex-1 p-2 bg-gray-50 rounded-lg text-sm outline-none" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); executeSearch(); } }} />
+                        <button type="button" onclick={executeSearch} class="p-2 bg-gray-800 text-white rounded-lg"><Search size={16} /></button>
                     </div>
                 {/if}
 
                 {#if hasSearched && searchResults.length > 0}
                     <div class="bg-white border border-gray-100 rounded-lg shadow-sm max-h-40 overflow-y-auto">
                         {#each searchResults as result}
-                            <button 
-                                type="button" 
-                                onclick={() => selectRestaurant(result)}
-                                class="w-full text-left p-3 hover:bg-gray-50 text-sm flex items-center justify-between border-b border-gray-50"
-                            >
+                            <button type="button" onclick={() => selectRestaurant(result)} class="w-full text-left p-3 hover:bg-gray-50 text-sm flex items-center justify-between border-b border-gray-50">
                                 <span class="font-bold">{result.placeName || result.name}</span>
                                 <span class="text-xs text-gray-400">{result.mainCategory || result.category}</span>
                             </button>
@@ -230,7 +202,6 @@
                     </div>
                 {/if}
             </div>
-
         </div>
     </form>
 </div>

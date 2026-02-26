@@ -99,7 +99,7 @@
 							
 							<div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
 								<span class="text-[11px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-bold border border-purple-100">{restaurant.zone}</span>
-								<span class="text-[11px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">도보 {restaurant.walkTimeInMinutes ?? '?'}분</span>
+								<span class="text-[11px] bg-red-50 text-[#6b0d0d] px-1.5 py-0.5 rounded font-bold">도보 {restaurant.walkTimeInMinutes ?? '?'}분</span>
 								<span class="text-xs text-gray-400 font-medium">({restaurant.distanceInMeters ?? 0}m)</span>
 							</div>
 
@@ -119,7 +119,7 @@
 					{#if restaurant.topKeywords && restaurant.topKeywords.length > 0}
 						<div class="mt-3 pt-3 border-t border-gray-50 flex gap-2 overflow-x-auto no-scrollbar">
 							{#each restaurant.topKeywords as k}
-								<span class="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-[10px] text-blue-600 font-medium whitespace-nowrap">
+								<span class="inline-flex items-center px-2 py-1 rounded-md bg-red-50 text-[10px] text-[#6b0d0d] font-medium whitespace-nowrap">
 									{k.keyword} <span class="ml-1 font-bold text-blue-400">{k.count}</span>
 								</span>
 							{/each}
@@ -171,3 +171,5 @@
 		</div>
 	{/if}
 </div>
+
+<style> .no-scrollbar::-webkit-scrollbar { display: none; } </style>

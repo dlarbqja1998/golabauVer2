@@ -1,5 +1,4 @@
 import { db } from '$lib/server/db';
-// 🔥 restaurants 테이블과 eq 연산자 import 추가!
 import { golabassyuPosts, ratings, restaurants } from '../../../db/schema'; 
 import { eq } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
@@ -19,14 +18,15 @@ export const actions = {
         const title = data.get('title')?.toString() || '';
         const content = data.get('content')?.toString() || '';
         const imageUrl = data.get('imageUrl')?.toString() || null;
+        
+        // 🔥 어디로 돌아가야 하는지 파라미터 확인
+        const returnTo = data.get('returnTo')?.toString();
 
-        // 🔥 [핵심 로직] 사용자에게 묻지 않고, 식당 ID를 이용해 DB에서 진짜 구역을 알아냅니다!
         let autoArea = '기타';
         if (restaurantId && restaurantId > 0) {
             const targetRestaurant = await db.query.restaurants.findFirst({
                 where: eq(restaurants.id, restaurantId)
             });
-            // 식당 정보가 있고 zone 값이 있다면 그걸 사용
             if (targetRestaurant && targetRestaurant.zone) {
                 autoArea = targetRestaurant.zone;
             }
@@ -41,7 +41,7 @@ export const actions = {
                 title: title,
                 content: content,
                 imageUrl: imageUrl,
-                area: autoArea, // 🔥 DB에서 찾아낸 정확한 구역 정보가 알아서 들어감!
+                area: autoArea, 
                 likes: 0
             });
 
@@ -53,7 +53,7 @@ export const actions = {
                         userId: locals.user.id, 
                     });
                 } catch (e) {
-                    console.error("평점 반영 실패 (식당 ID 불일치 등):", e);
+                    console.error("평점 반영 실패:", e);
                 }
             }
 
@@ -62,6 +62,10 @@ export const actions = {
             return fail(500, { message: '글 저장에 실패했습니다.' });
         }
 
+        // 🔥 상세페이지에서 왔다면 그곳으로 돌려보내기! 아니면 골라바쓔로!
+        if (returnTo) {
+            throw redirect(303, returnTo);
+        }
         throw redirect(303, '/golabassyu');
     }
 };

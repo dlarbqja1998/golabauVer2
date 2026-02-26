@@ -173,7 +173,7 @@
         <div class="flex items-center justify-between p-4 pb-2">
             <div class="flex items-center gap-1">
                 <a href="/" class="p-2 -ml-2 text-gray-800"><ChevronLeft size={24} /></a>
-                <h1 class="text-xl font-bold font-['Jua']">골라바쓔</h1>
+                <h1 class="text-xl font-bold font-['Jua']">골라밧슈</h1>
             </div>
             <div class="flex gap-2 text-xs font-bold text-gray-400">
                 <button onclick={() => activeSort = 'latest'} class={activeSort === 'latest' ? 'text-gray-900' : 'hover:text-gray-600'}>최신순</button>
@@ -216,7 +216,11 @@
                             <div class="flex flex-col">
                                 <div class="flex items-center gap-1.5 mb-1">
                                     <span class="text-sm font-bold text-gray-900">{post.writerName || '익명'}</span>
-                                    <span class="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-bold">{post.writerBadge || '신입생'}</span>
+                                    
+                                    {#if false}
+                                        <span class="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-bold">{post.writerBadge || '신입생'}</span>
+                                    {/if}
+
                                     {#if post.isMine}
                                         <span class="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded font-bold">ME</span>
                                     {/if}
@@ -259,8 +263,7 @@
                                             <form action="?/deletePost" method="POST" use:enhance={() => {
                                                 return async ({ result }) => {
                                                     if (result.type === 'success') {
-                                                        activeMenuId = null; // 메뉴 닫기
-                                                        // 0.1초 만에 화면에서 스르륵 지워버리기!
+                                                        activeMenuId = null; 
                                                         localPosts = localPosts.filter(p => p.id !== post.id);
                                                         showToast('게시글이 삭제되었습니다 🗑️');
                                                     } else {
@@ -273,7 +276,6 @@
                                                     <Trash2 size={14} /> 삭제하기
                                                 </button>
                                             </form>
-
                                         </div>
                                     {/if}
                                 </div>

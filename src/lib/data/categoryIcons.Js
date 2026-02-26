@@ -13,7 +13,7 @@ export const categoryIconMap = {
     '피자': '/category-icons/pizza.png',
     '고기': '/category-icons/gogi.png',
     '패스트푸드': '/category-icons/fastfood.png',
-    '커피': '/category-icons/coffee.png',
+    '카페': '/category-icons/coffee.png',
     '술집': '/category-icons/suljip.png',
     '기타': '/category-icons/gita.png'
 };
