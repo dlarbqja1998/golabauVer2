@@ -1,87 +1,62 @@
-// src/lib/server/scraper.ts
-import * as cheerio from 'cheerio';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // 인증서 무시 
+import { load } from 'cheerio';
 
-export interface CafeteriaMenu {
-	date: string; // 날짜 (예: 2024.02.19)
-	day: string;  // 요일 (예: 월)
-	student: {
-		korean: string[]; // 중식-한식
-		special: string[]; // 중식-일품
-		snack: string[];   // 중식-분식
-		dinner: string[];  // 석식
-	};
-	faculty: {
-		lunch: string[]; // 교직원 중식
-	};
-}
+export async function getCafeteriaMenu() {
+    // 1. 오늘 날짜 포맷팅 ("02.24")
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const targetDate = `${month}.${day}`; 
 
-export async function getCafeteriaMenu(): Promise<CafeteriaMenu[]> {
-	// 학교 식단표 URL (고려대 세종캠퍼스)
-	const URL = 'https://fund.korea.ac.kr/koreaSejong/8028/subview.do';
+    const url = 'https://sejong.korea.ac.kr/campuslife/facilities/dining/weeklymenu'; 
 
-	try {
-		const response = await fetch(URL);
-		if (!response.ok) throw new Error('학교 홈페이지 접속 실패');
-		
-		const html = await response.text();
-		const $ = cheerio.load(html);
-		const menus: CafeteriaMenu[] = [];
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("네트워크 에러");
+        
+        const html = await response.text();
+        const $ = load(html);
 
-		// 홈페이지 테이블 구조: tbody > tr 반복
-		// 보통 _artclTbl 클래스를 가진 테이블을 찾습니다.
-		$('table._artclTbl tbody tr').each((i, el) => {
-			const tds = $(el).find('td');
-			
-			// td가 충분하지 않으면 패스 (헤더나 빈 줄일 수 있음)
-			if (tds.length < 6) return;
+        let todayColumnIndex = -1;
 
-            // 1번째 컬럼: 날짜 (2024.02.19 (월) 형태)
-            const dateRaw = $(tds[0]).text().trim(); 
-            // 날짜와 요일 분리
-            const dateMatch = dateRaw.match(/^(\d{4}\.\d{2}\.\d{2})/);
-            const dayMatch = dateRaw.match(/\((.)\)/);
+        // 2. thead th에서 오늘 날짜 인덱스 찾기
+        $('table thead th').each((index, element) => {
+            if ($(element).text().includes(targetDate)) {
+                todayColumnIndex = index;
+            }
+        });
 
-            const date = dateMatch ? dateMatch[1] : dateRaw; // "2024.02.19"
-            const day = dayMatch ? dayMatch[1] : '';         // "월"
+        if (todayColumnIndex === -1) {
+            return "오늘은 학식 메뉴가 없습니다.";
+        }
 
-			// 데이터 정제 함수 (지저분한 공백, 쉼표 제거)
-			const parseMenu = (text: string) => {
-				if (!text) return [];
-				return text
-					.split(/\r\n|\n|,/) // 줄바꿈이나 쉼표로 분리
-					.map(item => item.trim())
-					.filter(item => item !== '' && item !== 'Top'); // 빈값 및 'Top' 제거
-			};
+        // 3. tbody의 첫 번째 줄(보통 중식)에서 정확한 td 칸 찾기
+        const targetTd = $('table tbody tr').first().children().eq(todayColumnIndex);
+        
+        // 🔥 4. [핵심] .offTxt 클래스가 있으면 그걸 쓰고, 없으면 <td> 전체 HTML을 가져옵니다!
+        let rawMenuHtml = targetTd.find('.offTxt').html();
+        if (!rawMenuHtml || rawMenuHtml.trim() === '') {
+            rawMenuHtml = targetTd.html(); // 백업 플랜 작동
+        }
 
-            // 컬럼 순서 (홈페이지 기준):
-            // 0: 날짜, 1: 교직원, 2: 학생(한식), 3: 학생(일품), 4: 학생(양식/분식), 5: 학생(석식)
-            
-            const facultyLunch = parseMenu($(tds[1]).text());
-            const studentKorean = parseMenu($(tds[2]).text());
-            const studentSpecial = parseMenu($(tds[3]).text());
-            const studentSnack = parseMenu($(tds[4]).text()); 
-            const studentDinner = parseMenu($(tds[5]).text());
+        if (!rawMenuHtml) {
+            return "오늘 등록된 메뉴가 없습니다.";
+        }
 
-			menus.push({
-				date,
-                day,
-				student: {
-					korean: studentKorean,
-					special: studentSpecial,
-					snack: studentSnack,
-					dinner: studentDinner
-				},
-				faculty: {
-					lunch: facultyLunch
-				}
-			});
-		});
+        // 5. 텍스트 예쁘게 다듬기
+        const cleanMenuText = rawMenuHtml
+            .replace(/<br\s*[\/]?>/gi, '\n') // <br> 태그를 줄바꿈으로 변경
+            .replace(/<[^>]+>/g, '')         // 나머지 모든 HTML 태그 박멸
+            .replace(/"/g, '')               // " 닭볶음 " 쌍따옴표 박멸
+            .split('\n')
+            .map(item => item.trim())
+            .filter(item => item.length > 0)
+            .join(', ');
 
-		return menus;
+        return cleanMenuText;
 
-	} catch (error) {
-		console.error('크롤링 에러:', error);
-		// 에러 나면 빈 배열 반환해서 사이트가 터지지는 않게 함
-		return [];
-	}
+    } catch (error) {
+        console.error("학식 크롤링 실패:", error);
+        return "학식 메뉴를 불러오지 못했습니다. 🥲";
+    }
 }

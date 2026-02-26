@@ -1,22 +1,17 @@
 <script>
     import { ChevronLeft, Search, MapPin, Image as ImageIcon, Star, X, Loader2 } from 'lucide-svelte';
     
-    // 상태 변수들
     let searchTerm = $state('');
     let searchResults = $state([]);
     let hasSearched = $state(false);
     
-    // 폼 데이터
     let selectedRestaurant = $state({ name: '', id: 0, category: '' });
     let rating = $state(0);
     
-    // 이미지 여러 장 처리를 위한 상태 변수
     let uploadedUrls = $state([]); 
-    
     let isUploading = $state(false);
     let formElement; 
 
-    // 1. 식당 검색 (엔터키 지원 추가)
     async function executeSearch() {
         if (searchTerm.length < 1) return alert('식당 이름을 입력해주세요!');
         
@@ -25,7 +20,6 @@
             if (res.ok) {
                 searchResults = await res.json();
                 hasSearched = true;
-                console.log("검색 결과:", searchResults); // 디버깅용 로그
             } else {
                 console.error("검색 실패:", res.status);
             }
@@ -34,23 +28,19 @@
         }
     }
 
-    // [수정] 서버에서 placeName으로 오든 name으로 오든 다 처리하게 변경
     function selectRestaurant(item) {
-        // DB 컬럼명이 placeName일 수도 있고 name일 수도 있음
         const rName = item.placeName || item.name;
-        
         selectedRestaurant = { name: rName, id: item.id, category: item.mainCategory || item.category };
+        
         searchTerm = rName;
         searchResults = [];
         hasSearched = false;
     }
 
-    // 2. 별점 주기
     function setRating(score) {
         rating = score;
     }
 
-    // 3. 이미지 업로드 (여러 장 처리)
     async function handleImageUpload(e) {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -79,12 +69,10 @@
         isUploading = false;
     }
 
-    // 이미지 삭제 함수
     function removeImage(index) {
         uploadedUrls = uploadedUrls.filter((_, i) => i !== index);
     }
 
-    // 4. 제출 전 검사
     function validateAndSubmit() {
         if (!selectedRestaurant.id) {
             alert('⚠️ 어떤 식당인지 알려주세요!\n(위치 추가를 눌러 식당을 선택해주세요)');
@@ -123,7 +111,7 @@
         <input type="hidden" name="restaurantId" value={selectedRestaurant.id} />
         <input type="hidden" name="rating" value={rating} />
         <input type="hidden" name="imageUrl" value={uploadedUrls.join(',')} />
-        <input type="hidden" name="area" value="전체" />
+        <input type="hidden" name="title" value={selectedRestaurant.name ? selectedRestaurant.name + " 후기" : "맛집 후기"} />
 
         <div class="w-full bg-gray-50 border-b border-gray-100 relative group overflow-hidden">
             {#if uploadedUrls.length > 0}
@@ -212,11 +200,11 @@
                         <input 
                             type="text" 
                             bind:value={searchTerm}
-                            placeholder="식당 검색" 
+                            placeholder="식당 검색하기" 
                             class="flex-1 p-2 bg-gray-50 rounded-lg text-sm outline-none"
                             onkeydown={(e) => {
                                 if (e.key === 'Enter') {
-                                    e.preventDefault(); // 폼 제출 방지
+                                    e.preventDefault(); 
                                     executeSearch();
                                 }
                             }}
@@ -242,8 +230,6 @@
                     </div>
                 {/if}
             </div>
-
-            <input type="hidden" name="title" value={selectedRestaurant.name ? selectedRestaurant.name + " 후기" : "맛집 후기"} />
 
         </div>
     </form>

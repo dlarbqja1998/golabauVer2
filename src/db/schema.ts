@@ -82,6 +82,7 @@ export const restaurants = pgTable("restaurants", {
     rating: real("rating").default(0),
     reviewCount: integer("review_count").default(0),
     averageRating: real("average_rating").default(0),
+    zone: text("zone").default('기타'),
 });
 
 // ▼▼▼ [수정됨] userId 추가 ▼▼▼

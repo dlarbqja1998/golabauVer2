@@ -4,15 +4,27 @@
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { fly } from 'svelte/transition'; // 🔥 토스트 애니메이션용 추가!
 
 	let { data } = $props();
 	let restaurant = $derived(data.restaurant);
 	let topKeywords = $derived(data.topKeywords || []);
-	let user = $derived(data.user); // 로그인 유저 정보
+	let user = $derived(data.user);
 
-	// 내 데이터로 초기값 설정
 	let ratingScore = $state(data.myRating || 0);
 	let selectedKeywords = $state(data.myKeywords || []);
+
+	// 🔥 [추가] 토스트 알림 상태 관리
+	let toastMessage = $state('');
+	let toastTimeout;
+	
+	function showToast(msg) {
+		toastMessage = msg;
+		if (toastTimeout) clearTimeout(toastTimeout);
+		toastTimeout = setTimeout(() => {
+			toastMessage = '';
+		}, 2500); // 2.5초 뒤 스르륵 사라짐
+	}
 
 	const keywordsList = [
 		'음식이 맛있어요 😋', '가성비가 좋아요 💸', '양이 많아요 🥘', '친절해요 😊', '매장이 청결해요 ✨',
@@ -37,12 +49,39 @@
 			if (container) {
 				const options = {
 					center: new window.kakao.maps.LatLng(restaurant.y, restaurant.x),
-					level: 3
+					level: 3 
 				};
 				const map = new window.kakao.maps.Map(container, options);
+				
 				const markerPosition = new window.kakao.maps.LatLng(restaurant.y, restaurant.x);
 				const marker = new window.kakao.maps.Marker({ position: markerPosition });
 				marker.setMap(map);
+
+				if (restaurant.pathCoordinates && restaurant.pathCoordinates.length > 0) {
+					const linePath = restaurant.pathCoordinates.map(
+						(coord) => new window.kakao.maps.LatLng(coord[0], coord[1])
+					);
+
+					const polyline = new window.kakao.maps.Polyline({
+						path: linePath,
+						strokeWeight: 5,        
+						strokeColor: '#FF3B30', 
+						strokeOpacity: 0.8,     
+						strokeStyle: 'solid'    
+					});
+					polyline.setMap(map); 
+
+					const bounds = new window.kakao.maps.LatLngBounds();
+					linePath.forEach(point => bounds.extend(point));
+					
+					setTimeout(() => {
+						map.setBounds(bounds, 30, 30, 30, 30); 
+						
+						if (map.getLevel() < 4) {
+							map.setLevel(4);
+						}
+					}, 150);
+				}
 			}
 		}
 	});
@@ -55,7 +94,7 @@
 <div class="flex flex-col w-full min-h-screen bg-white max-w-md mx-auto relative pb-32">
 	{#if restaurant}
 		<header class="absolute top-0 left-0 right-0 z-10 p-4 flex items-center">
-			<a href="javascript:history.back()" class="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm text-gray-800 active:scale-90 transition-transform hover:bg-white">
+			<a href="/list/{restaurant.mainCategory}" data-sveltekit-reload class="bg-white/80 backdrop-blur-sm p-2 rounded-full shadow-sm text-gray-800 active:scale-90 transition-transform hover:bg-white">
 				<ChevronLeft size={24} />
 			</a>
 		</header>
@@ -87,10 +126,16 @@
 						<span class="text-3xl font-bold text-gray-900">{restaurant.rating ? Number(restaurant.rating).toFixed(1) : '0.0'}</span>
 						<span class="text-gray-300 text-lg font-medium">/ 5.0</span>
 					</div>
-					<div class="text-right">
-						<p class="text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-full inline-block mb-1 border border-blue-100">
-							신정문 {restaurant.distanceInMeters}m
-						</p>
+					<div class="text-right flex flex-col items-end gap-1">
+						<div class="flex gap-1.5">
+							<span class="text-[11px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-bold border border-purple-100">{restaurant.zone}</span>
+							<span class="text-[11px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold border border-blue-100">
+								🚶‍♂️ 도보 약 {restaurant.walkTimeInMinutes ?? '?'}분
+							</span>
+						</div>
+						<span class="text-[10px] text-gray-400 font-medium pr-1">
+							신정문 기준 {restaurant.distanceInMeters ?? 0}m
+						</span>
 					</div>
 				</div>
 
@@ -160,8 +205,11 @@
 						use:enhance={() => {
 							return async ({ update, result }) => { 
 								await update(); 
+								// 🔥 alert 대신 토스트 사용!
 								if (result.type === 'success') {
-									alert('별점이 반영되었습니다! ⭐'); 
+									showToast('별점이 반영되었습니다! ⭐'); 
+								} else {
+									showToast('별점 등록에 실패했습니다 🥲');
 								}
 							};
 						}} 
@@ -210,8 +258,11 @@
 						use:enhance={() => {
 							return async ({ update, result }) => { 
 								await update(); 
+								// 🔥 alert 대신 토스트 사용!
 								if (result.type === 'success') {
-									alert('키워드 리뷰가 저장되었습니다! 👍'); 
+									showToast('키워드 리뷰가 저장되었습니다! 👍'); 
+								} else {
+									showToast('리뷰 등록에 실패했습니다 🥲');
 								}
 							};
 						}}
@@ -250,4 +301,12 @@
 			</div>
 		</div>
 	{/if}
+
+	{#if toastMessage}
+		<div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+			 transition:fly={{ y: 20, duration: 300 }}>
+			{toastMessage}
+		</div>
+	{/if}
+
 </div>

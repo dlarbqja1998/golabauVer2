@@ -1,19 +1,18 @@
 import { db } from '$lib/server/db';
-import { golabassyuPosts, ratings } from '../../../db/schema'; // 경로 확인
+// 🔥 restaurants 테이블과 eq 연산자 import 추가!
+import { golabassyuPosts, ratings, restaurants } from '../../../db/schema'; 
+import { eq } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export const actions = {
     createPost: async ({ request, locals }: RequestEvent) => {
-        // 1. 로그인 체크 (로그인 안 했으면 쫓아냄)
         if (!locals.user) {
             throw redirect(303, '/login');
         }
 
         const data = await request.formData();
         
-        // 폼 데이터 가져오기
-        const area = data.get('area')?.toString() || '전체';
         const restaurantName = data.get('restaurantName')?.toString() || '';
         const restaurantId = Number(data.get('restaurantId')); 
         const rating = Number(data.get('rating')) || 0;        
@@ -21,33 +20,40 @@ export const actions = {
         const content = data.get('content')?.toString() || '';
         const imageUrl = data.get('imageUrl')?.toString() || null;
 
+        // 🔥 [핵심 로직] 사용자에게 묻지 않고, 식당 ID를 이용해 DB에서 진짜 구역을 알아냅니다!
+        let autoArea = '기타';
+        if (restaurantId && restaurantId > 0) {
+            const targetRestaurant = await db.query.restaurants.findFirst({
+                where: eq(restaurants.id, restaurantId)
+            });
+            // 식당 정보가 있고 zone 값이 있다면 그걸 사용
+            if (targetRestaurant && targetRestaurant.zone) {
+                autoArea = targetRestaurant.zone;
+            }
+        }
+
         try {
-            // 2. 게시글 저장 (userId에 진짜 로그인한 유저 ID 넣음)
             await db.insert(golabassyuPosts).values({
-                userId: locals.user.id, // 👈 여기가 핵심! (1 대신 진짜 ID)
+                userId: locals.user.id, 
                 restaurantName: restaurantName,
                 restaurantId: restaurantId,
                 rating: rating,
                 title: title,
                 content: content,
                 imageUrl: imageUrl,
-                area: area,
+                area: autoArea, // 🔥 DB에서 찾아낸 정확한 구역 정보가 알아서 들어감!
                 likes: 0
             });
 
-            // 3. 식당 평점 연동 (ratings 테이블)
-            // (주의: restaurantId가 실제 DB에 없는 가짜 ID면 에러 날 수 있으므로 예외처리)
             if (restaurantId && restaurantId > 0 && rating > 0) {
                 try {
-                    // ▼▼▼ [수정] userId: locals.user.id 추가! ▼▼▼
                     await db.insert(ratings).values({
                         restaurantId: restaurantId,
                         rating: rating,
-                        userId: locals.user.id, // 👈 이걸 넣어줘야 빨간 줄이 사라집니다.
+                        userId: locals.user.id, 
                     });
                 } catch (e) {
                     console.error("평점 반영 실패 (식당 ID 불일치 등):", e);
-                    // 평점 실패해도 글은 써지게 둠
                 }
             }
 

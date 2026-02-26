@@ -10,14 +10,25 @@
 
     // 로컬 상태
     let localPosts = $state(data.posts || []);
-    let currentUser = $derived(data.user); // 로그인 유저 정보
+    let currentUser = $derived(data.user);
 
     // 탭 & 정렬
-    const tabs = ['전체', '내 글', '신정문앞', '욱일', '조치원역' ]; // [추가] '내 글' 탭
+    const tabs = ['전체', '내 글', '욱일', '고대앞', '홍대사이', '조치원역', '기타']; 
     let activeTab = $state('전체'); 
     let activeSort = $state('latest'); 
 
-    // [추가] URL 파라미터로 탭 자동 선택 (예: /golabassyu?tab=my)
+    // 🔥 [추가] 토스트 알림 상태 관리
+    let toastMessage = $state('');
+    let toastTimeout;
+    
+    function showToast(msg) {
+        toastMessage = msg;
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toastMessage = '';
+        }, 2500); // 2.5초 뒤에 스르륵 사라짐
+    }
+
     onMount(() => {
         const tabParam = $page.url.searchParams.get('tab');
         if (tabParam === 'my') {
@@ -25,7 +36,6 @@
         }
     });
 
-    // 더보기 펼침 상태
     let expandedPosts = $state(new Set());
     function toggleExpand(id) {
         const newSet = new Set(expandedPosts);
@@ -34,7 +44,6 @@
         expandedPosts = newSet;
     }
 
-    // [기능 1] 좋아요 토글
     async function toggleLike(post) {
         const originalLiked = post.isLiked;
         const originalCount = post.likes;
@@ -51,18 +60,16 @@
         } catch (e) {
             post.isLiked = originalLiked;
             post.likes = originalCount;
-            alert('오류가 발생했습니다.');
+            showToast('좋아요 처리 중 오류가 발생했습니다 🥲');
         }
     }
 
-    // [기능 2] 댓글 기능
     let isCommentOpen = $state(false);
     let currentPostId = $state(null);
     let comments = $state([]); 
     let commentInput = $state(''); 
     let isCommentsLoading = $state(false);
 
-    // 댓글창 열기
     async function openComments(postId) {
         currentPostId = postId;
         isCommentOpen = true;
@@ -73,7 +80,7 @@
             const res = await fetch(`/api/comment?postId=${postId}`);
             comments = await res.json();
         } catch (e) {
-            alert('댓글 로딩 실패');
+            showToast('댓글을 불러오지 못했습니다 🥲');
         } finally {
             isCommentsLoading = false;
         }
@@ -84,7 +91,6 @@
         currentPostId = null;
     }
 
-    // 댓글 쓰기
     async function submitComment() {
         if (!commentInput.trim()) return;
 
@@ -103,40 +109,37 @@
                 if (targetPost) {
                     targetPost.commentCount = (targetPost.commentCount || 0) + 1;
                 }
+                showToast('댓글이 등록되었습니다! 💬');
             }
         } catch (e) {
-            alert('댓글 등록 실패');
+            showToast('댓글 등록에 실패했습니다 🥲');
             commentInput = tempContent;
         }
     }
 
-    // [추가] 수정/삭제 메뉴 상태 관리
     let activeMenuId = $state(null);
     function toggleMenu(id) {
         if (activeMenuId === id) activeMenuId = null;
         else activeMenuId = id;
     }
 
-    // [추가] 수정 모달 상태 관리
     let isEditModalOpen = $state(false);
     let editPostId = $state(null);
     let editContent = $state('');
-    let editRating = $state(0); // 수정할 별점 상태
+    let editRating = $state(0);
 
     function openEditModal(post) {
         editPostId = post.id;
         editContent = post.content;
-        editRating = post.rating || 0; //현재 별점 불러오기
+        editRating = post.rating || 0; 
         isEditModalOpen = true;
-        activeMenuId = null; // 메뉴 닫기
+        activeMenuId = null; 
     }
 
-    // 필터링 로직 수정 ('내 글' 탭 처리)
     let filteredPosts = $derived.by(() => {
         let result = localPosts;
         
         if (activeTab === '내 글') {
-            // 로그인 안했으면 빈 배열, 했으면 내 글만(isMine)
             if (!currentUser) result = [];
             else result = result.filter(p => p.isMine);
         } else if (activeTab !== '전체') {
@@ -166,8 +169,8 @@
 
 <div class="flex flex-col w-full min-h-screen bg-gray-50 max-w-md mx-auto relative pb-24 overflow-x-hidden">
     
-    <header class="bg-white sticky top-0 z-30 border-b border-gray-100">
-        <div class="flex items-center justify-between p-4">
+    <header class="bg-white sticky top-0 z-30 border-b border-gray-100 shadow-sm">
+        <div class="flex items-center justify-between p-4 pb-2">
             <div class="flex items-center gap-1">
                 <a href="/" class="p-2 -ml-2 text-gray-800"><ChevronLeft size={24} /></a>
                 <h1 class="text-xl font-bold font-['Jua']">골라바쓔</h1>
@@ -178,9 +181,10 @@
                 <button onclick={() => activeSort = 'likes'} class={activeSort === 'likes' ? 'text-gray-900' : 'hover:text-gray-600'}>인기순</button>
             </div>
         </div>
-        <div class="flex px-4 gap-4 overflow-x-auto no-scrollbar pb-3">
+        
+        <div class="flex px-4 gap-3 overflow-x-auto no-scrollbar pb-3">
             {#each tabs as tab}
-                <button onclick={() => activeTab = tab} class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all {activeTab === tab ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-500'}">
+                <button onclick={() => activeTab = tab} class="shrink-0 px-3 py-1.5 rounded-full text-[13px] font-bold transition-all border {activeTab === tab ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}">
                     {#if tab === '내 글'}
                         🔒 {tab}
                     {:else}
@@ -193,11 +197,12 @@
 
     <main class="flex flex-col gap-4 py-4" onclick={() => activeMenuId = null}>
         {#if filteredPosts.length === 0}
-            <div class="py-20 text-center text-gray-400 text-sm">
+            <div class="py-20 flex flex-col items-center justify-center text-gray-400 gap-3">
+                <span class="text-4xl">🥲</span>
                 {#if activeTab === '내 글' && !currentUser}
-                    <p>로그인이 필요합니다 🥲</p>
+                    <p class="font-medium text-sm">로그인이 필요합니다!</p>
                 {:else}
-                    <p>해당하는 게시글이 없어요 😢</p>
+                    <p class="font-medium text-sm">해당 구역에는 게시글이 없어요!</p>
                 {/if}
             </div>
         {:else}
@@ -209,27 +214,33 @@
                     <div class="flex items-center justify-between p-3">
                         <div class="flex items-center gap-2">
                             <div class="flex flex-col">
-                                <div class="flex items-center gap-1.5">
+                                <div class="flex items-center gap-1.5 mb-1">
                                     <span class="text-sm font-bold text-gray-900">{post.writerName || '익명'}</span>
                                     <span class="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-bold">{post.writerBadge || '신입생'}</span>
                                     {#if post.isMine}
-                                        <span class="text-[9px] bg-red-100 text-red-500 px-1 rounded font-bold">ME</span>
+                                        <span class="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded font-bold">ME</span>
                                     {/if}
                                 </div>
-                                <span class="text-[10px] text-gray-400">{timeAgo(post.createdAt)}</span>
+                                <span class="text-[10px] text-gray-400 font-medium">{timeAgo(post.createdAt)}</span>
                             </div>
                         </div>
                         
                         <div class="flex items-center gap-2">
+                            {#if post.area && post.area !== '전체'}
+                                <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-bold border border-purple-100 shrink-0">
+                                    {post.area}
+                                </span>
+                            {/if}
+
                             {#if post.restaurantId}
-                                <a href="/restaurant/{post.restaurantId}" class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors active:scale-95 group">
-                                    <MapPin size={12} class="text-gray-400 group-hover:text-blue-500 transition-colors" />
-                                    <span class="text-xs font-bold text-gray-700 group-hover:text-blue-600 group-hover:underline decoration-blue-200 underline-offset-2 transition-colors">{post.restaurant}</span>
+                                <a href="/restaurant/{post.restaurantId}" class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors active:scale-95 group max-w-[120px]">
+                                    <MapPin size={12} class="text-gray-400 group-hover:text-blue-500 transition-colors shrink-0" />
+                                    <span class="text-xs font-bold text-gray-700 group-hover:text-blue-600 group-hover:underline decoration-blue-200 underline-offset-2 transition-colors truncate">{post.restaurant}</span>
                                 </a>
                             {:else}
-                                <div class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
-                                    <MapPin size={12} class="text-gray-400" />
-                                    <span class="text-xs font-bold">{post.restaurant}</span>
+                                <div class="flex items-center gap-1 text-gray-700 bg-gray-50 px-2 py-1 rounded-lg max-w-[120px]">
+                                    <MapPin size={12} class="text-gray-400 shrink-0" />
+                                    <span class="text-xs font-bold truncate">{post.restaurant}</span>
                                 </div>
                             {/if}
 
@@ -244,12 +255,25 @@
                                             <button onclick={() => openEditModal(post)} class="px-3 py-2.5 text-xs text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700">
                                                 <Edit2 size={14} /> 수정하기
                                             </button>
-                                            <form action="?/deletePost" method="POST" use:enhance>
+                                            
+                                            <form action="?/deletePost" method="POST" use:enhance={() => {
+                                                return async ({ result }) => {
+                                                    if (result.type === 'success') {
+                                                        activeMenuId = null; // 메뉴 닫기
+                                                        // 0.1초 만에 화면에서 스르륵 지워버리기!
+                                                        localPosts = localPosts.filter(p => p.id !== post.id);
+                                                        showToast('게시글이 삭제되었습니다 🗑️');
+                                                    } else {
+                                                        showToast('삭제에 실패했습니다 🥲');
+                                                    }
+                                                };
+                                            }}>
                                                 <input type="hidden" name="postId" value={post.id}>
                                                 <button class="w-full px-3 py-2.5 text-xs text-left text-red-500 hover:bg-red-50 flex items-center gap-2">
                                                     <Trash2 size={14} /> 삭제하기
                                                 </button>
                                             </form>
+
                                         </div>
                                     {/if}
                                 </div>
@@ -338,13 +362,14 @@
                     return async ({ result }) => {
                         if (result.type === 'success') {
                             isEditModalOpen = false;
-                            // 로컬 상태 업데이트 (내용 + 별점 즉시 반영)
                             const p = localPosts.find(x => x.id === editPostId);
                             if(p) {
                                 p.content = editContent;
-                                p.rating = editRating; // 별점도 업데이트
+                                p.rating = editRating; 
                             }
-                            alert('수정되었습니다! ✨');
+                            showToast('게시글이 수정되었습니다! ✨');
+                        } else {
+                            showToast('수정에 실패했습니다 🥲');
                         }
                     };
                 }}>
@@ -443,6 +468,13 @@
                     <ArrowUp size={20} strokeWidth={2.5} />
                 </button>
             </div>
+        </div>
+    {/if}
+
+    {#if toastMessage}
+        <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+             transition:fly={{ y: 20, duration: 300 }}>
+            {toastMessage}
         </div>
     {/if}
 
