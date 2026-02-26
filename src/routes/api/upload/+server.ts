@@ -1,16 +1,12 @@
 import { json } from '@sveltejs/kit';
-// SvelteKit에서 제공하는 타입 추가
 import type { RequestEvent } from '@sveltejs/kit'; 
-import { r2 } from '../../../lib/server/s3'; 
+import { r2 } from '../../../lib/server/s3'; // (형 폴더 경로 맞는지 확인!)
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import dotenv from 'dotenv';
+import { env } from '$env/dynamic/private'; // 🔥 dotenv 대신 SvelteKit 보따리!
 
-dotenv.config();
+const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
+const R2_PUBLIC_URL = env.R2_PUBLIC_URL;
 
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
-
-// { request }: RequestEvent 로 타입을 지정해주면 빨간 줄이 사라집니다.
 export async function POST({ request }: RequestEvent) {
     const formData = await request.formData();
     const file = formData.get('image') as File;
@@ -22,13 +18,14 @@ export async function POST({ request }: RequestEvent) {
     const uniqueName = `images/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
     
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // 🔥 Buffer 대신 클라우드플레어 찰떡 호환인 Uint8Array 사용!
+    const bodyData = new Uint8Array(arrayBuffer);
 
     try {
         await r2.send(new PutObjectCommand({
             Bucket: R2_BUCKET_NAME,
             Key: uniqueName,
-            Body: buffer,
+            Body: bodyData, // 🔥 변경된 bodyData 넣기
             ContentType: file.type,
         }));
 
