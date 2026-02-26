@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '../../../../db/schema'; // 상대경로 확인
 import { eq } from 'drizzle-orm';
-import { AUTH_KAKAO_ID, AUTH_KAKAO_SECRET } from '$env/static/private';
+import { env } from '$env/dynamic/private'; // 🔥 dynamic으로 변경!
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
     // 1. 인가 코드 확인
@@ -13,8 +13,8 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     // 2. 카카오 토큰 요청
     const tokenParams = new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: AUTH_KAKAO_ID,
-        client_secret: AUTH_KAKAO_SECRET,
+        client_id: env.AUTH_KAKAO_ID, // 🔥 env 보따리에서 꺼내기
+        client_secret: env.AUTH_KAKAO_SECRET, // 🔥 env 보따리에서 꺼내기
         redirect_uri: `${url.origin}/auth/callback/kakao`,
         code
     });

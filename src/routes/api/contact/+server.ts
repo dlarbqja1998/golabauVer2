@@ -1,8 +1,7 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types'; // [추가] 타입 가져오기
-import { DISCORD_WEBHOOK_URL } from '$env/static/private';
+import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private'; // 🔥 여기 수정! env 보따리를 통째로 가져옴!
 
-// [수정] RequestHandler 타입 적용
 export const POST: RequestHandler = async ({ request }) => {
     try {
         const { category, content, contact } = await request.json();
@@ -32,8 +31,8 @@ export const POST: RequestHandler = async ({ request }) => {
             ]
         };
 
-        // 디스코드로 전송
-        const response = await fetch(DISCORD_WEBHOOK_URL, {
+        // 🔥 여기 수정! env.DISCORD_WEBHOOK_URL 로 꺼내서 씀!
+        const response = await fetch(env.DISCORD_WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
