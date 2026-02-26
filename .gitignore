@@ -27,3 +27,6 @@ vite.config.ts.timestamp-*
 
 #db
 3_final_restaurants.json
+
+seed.ts
+optimize-images.mjs
