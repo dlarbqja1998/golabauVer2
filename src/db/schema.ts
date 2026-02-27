@@ -8,7 +8,7 @@ export const users = pgTable("user", {
     id: serial("id").primaryKey(),
     email: text("email").unique().notNull(),
     password: text("password"),
-    nickname: text("nickname").notNull(),
+    nickname: varchar("nickname", {length:10}).notNull(),
     badge: text("badge").default('CrimsonJunior'),
     profileImg: text("profile_img"),
     points: integer("points").default(0),
@@ -52,14 +52,24 @@ export const golabassyuComments = pgTable("golabassyu_comments", {
     postId: integer("post_id").notNull().references(() => golabassyuPosts.id, { onDelete: 'cascade' }),
     userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }), // 작성자 연결
     content: text("content").notNull(),
+    // ▼▼▼ [추가됨] 댓글 좋아요 개수 기록 컬럼 ▼▼▼
+    likes: integer("likes").default(0),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
 
-// 좋아요 기록
+// 게시글 좋아요 기록
 export const postLikes = pgTable("post_likes", {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull(),
     postId: integer("post_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+// ▼▼▼ [추가됨] 댓글 좋아요 기록 테이블 ▼▼▼
+export const commentLikes = pgTable("comment_likes", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    commentId: integer("comment_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
 

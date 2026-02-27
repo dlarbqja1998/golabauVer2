@@ -51,8 +51,9 @@ export const actions: Actions = {
         const grade = data.get('grade')?.toString();
 
         // 유효성 검사
-        if (!nickname || nickname.length < 2) {
-            return fail(400, { message: '닉네임은 2글자 이상이어야 합니다.' });
+        if (!nickname || nickname.length < 2 || nickname.length > 10) {
+            console.log(`[보안] 마이페이지 닉네임 길이 조작 시도: ${nickname?.length || 0}자`);
+            return fail(400, { message: '닉네임은 2글자 이상, 10글자 이하로 입력해주세요.' });
         }
 
         try {

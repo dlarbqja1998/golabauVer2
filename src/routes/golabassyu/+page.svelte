@@ -17,7 +17,7 @@
     let activeTab = $state('전체'); 
     let activeSort = $state('latest'); 
 
-    // 🔥 [추가] 토스트 알림 상태 관리
+    // 토스트 알림 상태 관리
     let toastMessage = $state('');
     let toastTimeout;
     
@@ -26,7 +26,7 @@
         if (toastTimeout) clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => {
             toastMessage = '';
-        }, 2500); // 2.5초 뒤에 스르륵 사라짐
+        }, 2500);
     }
 
     onMount(() => {
@@ -45,6 +45,11 @@
     }
 
     async function toggleLike(post) {
+        if (!currentUser) {
+            showToast('로그인이 필요합니다 🔒');
+            return;
+        }
+
         const originalLiked = post.isLiked;
         const originalCount = post.likes;
 
@@ -56,11 +61,15 @@
                 method: 'POST',
                 body: JSON.stringify({ postId: post.id, isLiked: originalLiked })
             });
-            if (!res.ok) throw new Error();
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error); 
+            }
         } catch (e) {
             post.isLiked = originalLiked;
             post.likes = originalCount;
-            showToast('좋아요 처리 중 오류가 발생했습니다 🥲');
+            showToast(e.message || '좋아요 처리 중 오류가 발생했습니다 🥲');
         }
     }
 
@@ -92,6 +101,11 @@
     }
 
     async function submitComment() {
+        if (!currentUser) {
+            showToast('로그인이 필요합니다 🔒');
+            return;
+        }
+
         if (!commentInput.trim()) return;
 
         const tempContent = commentInput;
@@ -217,10 +231,6 @@
                                 <div class="flex items-center gap-1.5 mb-1">
                                     <span class="text-sm font-bold text-gray-900">{post.writerName || '익명'}</span>
                                     
-                                    {#if false}
-                                        <span class="text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded font-bold">{post.writerBadge || '신입생'}</span>
-                                    {/if}
-
                                     {#if post.isMine}
                                         <span class="text-[9px] bg-red-100 text-red-500 px-1.5 py-0.5 rounded font-bold">ME</span>
                                     {/if}
@@ -327,17 +337,17 @@
 
                     <div class="px-3 pb-4">
                         {#if expandedPosts.has(post.id)}
-                            <button onclick={() => toggleExpand(post.id)} class="text-sm text-gray-800 leading-relaxed text-left w-full whitespace-pre-wrap">
+                            <button onclick={() => toggleExpand(post.id)} class="text-sm text-gray-800 leading-relaxed text-left w-full whitespace-pre-wrap break-words">
                                 {post.content}
                                 <span class="text-xs text-gray-300 font-bold ml-1 cursor-pointer">(접기)</span>
                             </button>
                         {:else}
-                            <div class="flex items-center w-full cursor-pointer" onclick={() => toggleExpand(post.id)}>
-                                <p class="text-sm text-gray-800 leading-relaxed truncate flex-1">
+                            <div class="flex items-end w-full cursor-pointer" onclick={() => toggleExpand(post.id)}>
+                                <p class="text-sm text-gray-800 leading-relaxed line-clamp-2 whitespace-pre-wrap break-words flex-1">
                                     {post.content}
                                 </p>
-                                {#if post.content.length > 1}
-                                    <button onclick={(e) => { e.stopPropagation(); toggleExpand(post.id); }} class="text-xs text-gray-400 font-bold ml-1 shrink-0 hover:text-gray-600">
+                                {#if post.content.length > 10 || post.content.includes('\n')}
+                                    <button onclick={(e) => { e.stopPropagation(); toggleExpand(post.id); }} class="text-xs text-gray-400 font-bold ml-1 shrink-0 hover:text-gray-600 mb-0.5">
                                         ... 더보기
                                     </button>
                                 {/if}
@@ -432,7 +442,7 @@
                 </button>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
                 {#if isCommentsLoading}
                     <div class="flex justify-center py-10"><Loader2 class="animate-spin text-gray-300" /></div>
                 {:else if comments.length === 0}
@@ -442,14 +452,32 @@
                     </div>
                 {:else}
                     {#each comments as comment}
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 rounded-full bg-gray-100 shrink-0"></div>
-                            <div class="flex flex-col">
-                                <div class="flex items-center gap-1.5 mb-0.5">
-                                    <span class="text-sm font-bold text-gray-900">{comment.writerName || '익명'}</span>
-                                    <span class="text-[10px] text-gray-400">{timeAgo(comment.createdAt)}</span>
+                        <div class="flex flex-col gap-1 mb-2 p-2.5 bg-gray-50 rounded-lg relative">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="flex flex-col flex-1">
+                                    <span class="text-[10px] text-gray-400 font-bold mb-0.5">{comment.writerName || '익명'}</span>
+                                    <p class="text-sm text-gray-800 leading-snug break-all">{comment.content}</p>
                                 </div>
-                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                                
+                                {#if currentUser && currentUser.id === comment.userId}
+                                    <form method="POST" action="?/deleteComment" use:enhance={() => {
+                                        return async ({ result }) => {
+                                            if (result.type === 'success') {
+                                                showToast('댓글이 삭제되었습니다 🗑️');
+                                                await openComments(currentPostId);
+                                                const targetPost = localPosts.find(p => p.id === currentPostId);
+                                                if (targetPost) targetPost.commentCount = Math.max(0, targetPost.commentCount - 1);
+                                            } else {
+                                                showToast('삭제 권한이 없습니다 🥲');
+                                            }
+                                        };
+                                    }}>
+                                        <input type="hidden" name="commentId" value={comment.id} />
+                                        <button type="submit" class="text-[11px] text-red-400 font-bold hover:text-red-600 transition-colors shrink-0 mt-1">
+                                            삭제
+                                        </button>
+                                    </form>
+                                {/if}
                             </div>
                         </div>
                     {/each}
@@ -457,24 +485,33 @@
             </div>
 
             <div class="p-3 border-t border-gray-100 bg-white flex gap-2 shrink-0 pb-6">
-                <input 
-                    type="text" 
-                    bind:value={commentInput}
-                    onkeydown={(e) => e.key === 'Enter' && submitComment()}
-                    placeholder="댓글 달기..." 
-                    class="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-3 text-sm outline-none focus:border-blue-400 focus:bg-white transition-colors" 
-                />
-                <button 
-                    onclick={submitComment}
-                    class="bg-[#DC143C] text-white hover:bg-[#C01134] rounded-full w-10 h-10 flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-sm">
-                    <ArrowUp size={20} strokeWidth={2.5} />
-                </button>
+                {#if currentUser}
+                    <input 
+                        type="text" 
+                        bind:value={commentInput}
+                        onkeydown={(e) => e.key === 'Enter' && submitComment()}
+                        placeholder="댓글 달기..." 
+                        class="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-3 text-sm outline-none focus:border-blue-400 focus:bg-white transition-colors" 
+                    />
+                    <button 
+                        onclick={submitComment}
+                        class="bg-[#DC143C] text-white hover:bg-[#C01134] rounded-full w-10 h-10 flex items-center justify-center shrink-0 active:scale-90 transition-transform shadow-sm">
+                        <ArrowUp size={20} strokeWidth={2.5} />
+                    </button>
+                {:else}
+                    <div 
+                        class="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-3 text-sm text-gray-400 text-center cursor-pointer"
+                        onclick={() => showToast('로그인이 필요합니다 🔒')}
+                    >
+                        로그인 후 댓글을 남겨보세요.
+                    </div>
+                {/if}
             </div>
         </div>
     {/if}
 
     {#if toastMessage}
-        <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-[10000] flex items-center gap-2 whitespace-nowrap" 
              transition:fly={{ y: 20, duration: 300 }}>
             {toastMessage}
         </div>

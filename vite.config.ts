@@ -15,8 +15,8 @@ export default defineConfig({
 				display: 'standalone', // 레퍼런스처럼 주소창 숨기기
 				theme_color: '#ffffff',
 				icons: [
-					{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-					{ src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+					{ src: 'icon.png', sizes: '192x192', type: 'image/png' },
+					{ src: 'thumbnail.png', sizes: '512x512', type: 'image/png' }
 				]
 			}
 		})

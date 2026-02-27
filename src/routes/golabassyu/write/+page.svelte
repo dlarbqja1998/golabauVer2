@@ -1,8 +1,24 @@
 <script>
     import { ChevronLeft, Search, MapPin, Image as ImageIcon, Star, X, Loader2 } from 'lucide-svelte';
-    import { page } from '$app/stores'; // 🔥 URL 파라미터 읽기용
+    import { page } from '$app/stores'; 
     import { onMount } from 'svelte';
-    
+    import { enhance } from '$app/forms'; 
+    import { fly } from 'svelte/transition'; // 🔥 애니메이션 추가!
+
+    let { form } = $props(); 
+
+    // 🔥 토스트 알림 상태 및 함수 (스크립트 안으로 쏙!)
+    let toastMessage = $state('');
+    let toastTimeout;
+
+    function showToast(msg) {
+        toastMessage = msg;
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toastMessage = '';
+        }, 2500); 
+    }
+
     let searchTerm = $state('');
     let searchResults = $state([]);
     let hasSearched = $state(false);
@@ -12,29 +28,52 @@
     
     let uploadedUrls = $state([]); 
     let isUploading = $state(false);
-    let formElement; 
 
-    // 🔥 고정 상태 관리
     let isLocked = $state(false);
     let returnToUrl = $state('');
 
-    onMount(() => {
-        // 상세페이지에서 넘겨준 파라미터들을 낚아챕니다!
-        const paramId = $page.url.searchParams.get('restaurantId');
-        const paramName = $page.url.searchParams.get('restaurantName');
-        const paramReturn = $page.url.searchParams.get('returnTo');
+    let content = $state(form?.content || '');
 
-        if (paramId && paramName) {
-            selectedRestaurant = { name: paramName, id: Number(paramId), category: '' };
-            isLocked = true; // 식당 변경 불가 모드로 잠금!
+    // 🔥 서버 에러 메시지 띄우기
+    $effect(() => {
+        if (form?.error) {
+            showToast(form.message);
         }
-        if (paramReturn) {
-            returnToUrl = paramReturn;
+    });
+
+    onMount(() => {
+        // 🔥 적나라한 파라미터 대신 암호화된 token을 먼저 찾음!
+        const token = $page.url.searchParams.get('token');
+
+        if (token) {
+            try {
+                // 외계어(Base64)를 다시 원래 객체로 복호화 (해독)
+                const decoded = JSON.parse(decodeURIComponent(atob(token)));
+                selectedRestaurant = { name: decoded.name, id: Number(decoded.id), category: '' };
+                isLocked = true; // 식당 변경 불가 모드로 잠금!
+                returnToUrl = decoded.returnTo;
+            } catch (e) {
+                console.error("토큰 해독 실패:", e);
+                showToast('⚠️ 비정상적인 접근입니다.');
+            }
+        } else {
+            // (혹시 모를 하위 호환성을 위해 남겨둠) 토큰이 없으면 기존 방식 체크
+            const paramId = $page.url.searchParams.get('restaurantId');
+            const paramName = $page.url.searchParams.get('restaurantName');
+            const paramReturn = $page.url.searchParams.get('returnTo');
+
+            if (paramId && paramName) {
+                selectedRestaurant = { name: paramName, id: Number(paramId), category: '' };
+                isLocked = true; 
+            }
+            if (paramReturn) {
+                returnToUrl = paramReturn;
+            }
         }
     });
 
     async function executeSearch() {
-        if (searchTerm.length < 1) return alert('식당 이름을 입력해주세요!');
+        if (searchTerm.length < 1) return showToast('식당 이름을 입력해주세요!');
         try {
             const res = await fetch(`/api/search-restaurant?q=${searchTerm}`);
             if (res.ok) {
@@ -71,9 +110,15 @@
             try {
                 const res = await fetch('/api/upload', { method: 'POST', body: formData });
                 const data = await res.json();
+                
+                if (!res.ok) {
+                    showToast(`⚠️ ${data.error}`);
+                    continue; 
+                }
+                
                 if (data.url) uploadedUrls.push(data.url);
             } catch (err) {
-                alert('이미지 업로드 중 오류가 발생했습니다.');
+                showToast('이미지 업로드 중 오류가 발생했습니다.');
             }
         }
         isUploading = false;
@@ -81,14 +126,6 @@
 
     function removeImage(index) {
         uploadedUrls = uploadedUrls.filter((_, i) => i !== index);
-    }
-
-    function validateAndSubmit() {
-        if (!selectedRestaurant.id) {
-            alert('⚠️ 어떤 식당인지 알려주세요!\n(위치 추가를 눌러 식당을 선택해주세요)');
-            return; 
-        }
-        formElement.submit();
     }
 </script>
 
@@ -100,12 +137,26 @@
         </a>
         <h1 class="text-lg font-bold font-['Jua']">새 게시물</h1>
         
-        <button type="button" onclick={validateAndSubmit} class="text-blue-500 font-bold text-sm px-2 hover:bg-blue-50 rounded-lg transition-colors">
+        <button type="submit" form="instaForm" class="text-blue-500 font-bold text-sm px-2 hover:bg-blue-50 rounded-lg transition-colors">
             공유
         </button>
     </header>
 
-    <form bind:this={formElement} id="instaForm" method="POST" action="?/createPost" class="flex flex-col flex-1">
+    <form 
+        id="instaForm" 
+        method="POST" 
+        action="?/createPost" 
+        class="flex flex-col flex-1"
+        use:enhance={({ cancel }) => {
+            if (!selectedRestaurant.id) {
+                showToast('⚠️ 어떤 식당인지 알려주세요!\n(위치 추가를 눌러 식당을 선택해주세요)');
+                cancel(); 
+            }
+            return async ({ update }) => {
+                await update({ reset: false }); 
+            };
+        }}
+    >
         
         <input type="hidden" name="restaurantName" value={selectedRestaurant.name} />
         <input type="hidden" name="restaurantId" value={selectedRestaurant.id} />
@@ -160,7 +211,7 @@
                 </div>
             </div>
 
-            <textarea name="content" placeholder="문구 입력..." rows="3" class="w-full text-sm outline-none resize-none placeholder-gray-400 font-['Noto_Sans_KR']" required></textarea>
+            <textarea name="content" bind:value={content} placeholder="문구 입력..." rows="3" class="w-full text-sm outline-none resize-none placeholder-gray-400 font-['Noto_Sans_KR']" required></textarea>
 
             <div class="h-px w-full bg-gray-100"></div>
 
@@ -205,6 +256,13 @@
         </div>
     </form>
 </div>
+
+{#if toastMessage}
+    <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+         transition:fly={{ y: 20, duration: 300 }}>
+        {toastMessage}
+    </div>
+{/if}
 
 <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }

@@ -103,6 +103,17 @@
 
 	const contactCategories = ['맛집 추가', '정보 수정', '기능 제안', '버그 신고', '기타'];
 
+	// 🔥 [추가] 모달이 열려있을 때 뒷배경 스크롤 완벽 차단 로직
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			if (isContactModalOpen || isBusModalOpen) {
+				document.body.style.overflow = 'hidden';
+			} else {
+				document.body.style.overflow = '';
+			}
+		}
+	});
+
 	async function sendInquiry() {
 		if (!contactContent.trim()) {
 			alert('내용을 입력해주세요!');
@@ -327,8 +338,8 @@
 	{/if}
 
 	{#if isBusModalOpen}
-		<div class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center" onclick={() => isBusModalOpen = false}>
-			<button class="absolute top-6 right-6 text-white p-2 bg-gray-800/50 rounded-full z-50 hover:bg-gray-700 transition-colors" onclick={() => isBusModalOpen = false}>
+		<div class="fixed inset-0 bg-black/90 z-[9999] flex flex-col items-center justify-center" onclick={() => isBusModalOpen = false}>
+			<button class="absolute top-6 right-6 text-white p-2 bg-gray-800/50 rounded-full z-[10000] hover:bg-gray-700 transition-colors" onclick={() => isBusModalOpen = false}>
 				<X size={28} />
 			</button>
 			<p class="absolute top-8 left-6 text-white/70 text-sm font-medium z-50 pointer-events-none">👆 이미지를 확대하거나 스크롤하세요</p>
@@ -339,18 +350,18 @@
 	{/if}
 
 	{#if isContactModalOpen}
-		<div class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4" onclick={() => isContactModalOpen = false}>
+		<div class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center sm:p-4" onclick={() => isContactModalOpen = false}>
 			<div 
-				class="bg-white w-full max-w-sm sm:rounded-2xl rounded-t-2xl p-6 shadow-2xl animate-fade-in-up" 
+				class="bg-white w-full max-w-sm sm:rounded-2xl rounded-t-2xl p-6 shadow-2xl animate-fade-in-up max-h-[85dvh] overflow-y-auto flex flex-col" 
 				onclick={(e) => e.stopPropagation()}
 			>
-				<div class="flex justify-between items-center mb-6">
+				<div class="flex justify-between items-center mb-6 shrink-0">
 					<h3 class="font-bold text-xl text-gray-900 font-['Jua']">문의하기 📬</h3>
 					<button onclick={() => isContactModalOpen = false} class="text-gray-400 hover:text-black">
 						<X size={24} />
 					</button>
 				</div>
-				<div class="mb-4">
+				<div class="mb-4 shrink-0">
 					<label class="block text-xs font-bold text-gray-500 mb-2">어떤 내용을 보내시나요?</label>
 					<div class="flex flex-wrap gap-2">
 						{#each contactCategories as cat}
@@ -363,14 +374,14 @@
 						{/each}
 					</div>
 				</div>
-				<div class="mb-4">
+				<div class="mb-4 shrink-0">
 					<textarea 
 						bind:value={contactContent}
 						placeholder="내용을 자유롭게 적어주세요. (맛집 제보 시 식당 이름 필수!)"
 						class="w-full h-32 p-4 bg-gray-50 border border-gray-200 rounded-xl resize-none text-sm outline-none focus:border-black focus:bg-white transition-colors placeholder-gray-400"
 					></textarea>
 				</div>
-				<div class="mb-6">
+				<div class="mb-6 shrink-0">
 					<label class="block text-xs font-bold text-gray-500 mb-2">답변 받을 연락처 (선택)</label>
 					<input 
 						type="text" 
@@ -382,7 +393,7 @@
 				<button 
 					onclick={sendInquiry} 
 					disabled={isSending}
-					class="w-full py-4 bg-black text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
+					class="w-full py-4 bg-black text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-300 disabled:cursor-not-allowed shrink-0"
 				>
 					{#if isSending}
 						<span class="animate-spin">⏳</span> 전송 중...

@@ -118,7 +118,7 @@
 
 			<a href="/golabassyu" class="flex flex-col items-center gap-1 {$page.url.pathname.startsWith('/golabassyu') ? 'text-red-600' : 'text-gray-400'}">
 				<MessageCircle size={24} />
-				<span class="text-[10px] font-bold tracking-tight">골라바쓔</span>
+				<span class="text-[10px] font-bold tracking-tight">골라밧슈</span>
 			</a>
 
 			<a href="/my" class="flex flex-col items-center gap-1 {$page.url.pathname === '/my' ? 'text-red-600' : 'text-gray-400'}">

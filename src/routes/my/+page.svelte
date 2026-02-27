@@ -2,8 +2,9 @@
     import { enhance } from '$app/forms';
     import { Settings, Save, Camera } from 'lucide-svelte';
     import { universityData } from '$lib/data/majors';
+    import { fly } from 'svelte/transition'; // 🔥 토스트 애니메이션용 추가
 
-    let { data } = $props();
+    let { data, form } = $props(); // 🔥 서버에서 날아오는 에러(form) 받기 위해 추가
     let user = $derived(data.user);
     let myPosts = $derived(data.myPosts);
 
@@ -17,6 +18,25 @@
     // 선택된 단과대에 따라 학과 목록 자동 갱신
     let deptList = $derived(editCollege ? universityData[editCollege] : []);
 
+    // 🔥 토스트 알림 상태 및 함수 추가
+    let toastMessage = $state('');
+    let toastTimeout;
+
+    function showToast(msg) {
+        toastMessage = msg;
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toastMessage = '';
+        }, 2500); 
+    }
+
+    // 🔥 서버에서 에러 뱉었을 때 토스트 띄우기
+    $effect(() => {
+        if (form?.error || form?.message) {
+            showToast(`⚠️ ${form.message || '오류가 발생했습니다.'}`);
+        }
+    });
+
     function startEditing() {
         editCollege = user.college || ''; 
         isEditing = true;
@@ -25,19 +45,24 @@
     const submitProfile = () => {
         return async ({ update, result }) => {
             loading = true;
-            await update();
+            await update({ reset: false }); // 화면 덜컹거림 방지
             loading = false;
+            
             if (result.type === 'success') {
                 isEditing = false;
-                alert('프로필이 수정되었습니다! 🎉');
+                showToast('프로필이 수정되었습니다! 🎉'); // 🔥 alert 대신 토스트!
+            } else if (result.type === 'failure') {
+                // 서버에서 fail()로 뱉은 메시지는 위 $effect에서 알아서 잡아줌
+            } else {
+                showToast('수정 중 오류가 발생했습니다 🥲');
             }
         };
     };
 </script>
 
-<div class="min-h-screen bg-gray-50 pb-24 max-w-md mx-auto">
+<div class="min-h-screen bg-gray-50 pb-24 max-w-md mx-auto relative">
     
-    <div class="bg-white p-6 mb-4 shadow-sm rounded-b-3xl relative">
+    <div class="bg-white p-6 mb-4 shadow-sm rounded-b-3xl relative z-10">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold font-['Jua']">마이페이지</h1>
             
@@ -185,4 +210,12 @@
             </button>
         </form>
     </div>
+
+    {#if toastMessage}
+        <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+             transition:fly={{ y: 20, duration: 300 }}>
+            {toastMessage}
+        </div>
+    {/if}
+
 </div>

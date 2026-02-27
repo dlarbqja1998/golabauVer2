@@ -97,6 +97,20 @@
 		const urls = imgString.split(',').map(s => s.trim()).filter(Boolean);
 		return urls.length > 0 ? urls[0] : null;
 	}
+
+	function getWriteUrl() {
+		if (!restaurant) return '#';
+		// 1. 보낼 데이터를 하나의 보따리(JSON)로 묶음
+		const payload = JSON.stringify({
+			id: restaurant.id,
+			name: restaurant.placeName,
+			returnTo: `/restaurant/${restaurant.id}`
+		});
+		// 2. 한글 깨짐 방지 + Base64(외계어)로 완벽하게 인코딩!
+		const token = btoa(encodeURIComponent(payload));
+		return `/golabassyu/write?token=${token}`;
+	}
+
 </script>
 
 <div class="flex flex-col w-full min-h-screen bg-white max-w-md mx-auto relative pb-32">
@@ -266,12 +280,18 @@
 						💬 다녀왔슈 <span class="text-[#8B0029] text-sm font-sans">{reviews.length}</span>
 					</h3>
 					
-					<a href="/golabassyu/write?restaurantId={restaurant.id}&restaurantName={encodeURIComponent(restaurant.placeName)}&returnTo=/restaurant/{restaurant.id}" 
-					   class="text-xs font-bold text-white bg-[#8B0029] hover:bg-[#4a0909] transition-colors px-3 py-2 rounded-lg shadow-sm flex items-center gap-1 active:scale-95">
-						✍️ 리뷰 쓰러가기
-					</a>
+					{#if user}
+						<a href={getWriteUrl()}
+						class="text-xs font-bold text-white bg-[#8B0029] hover:bg-[#4a0909] transition-colors px-3 py-2 rounded-lg shadow-sm flex items-center gap-1 active:scale-95">
+							✍️ 리뷰 쓰러가기
+						</a>
+					{:else}
+						<a href="/login" 
+						class="text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors px-3 py-2 rounded-lg shadow-sm flex items-center gap-1 active:scale-95">
+							🔒 로그인 후 리뷰 쓰기
+						</a>
+					{/if}
 				</div>
-
 				{#if reviews.length > 0}
 					<div class="flex flex-col gap-3">
 						{#each visibleReviews as review}
@@ -323,7 +343,8 @@
 	{/if}
 
 	{#if toastMessage}
-		<div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" transition:fly={{ y: 20, duration: 300 }}>
+		<div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
+			transition:fly={{ y: 20, duration: 300 }}>
 			{toastMessage}
 		</div>
 	{/if}

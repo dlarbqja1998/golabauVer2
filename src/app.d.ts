@@ -5,13 +5,14 @@ declare global {
 		// interface Error {}
 		interface Locals {
             // 여기에 user 타입을 정의해줍니다.
-            user?: {
+            user: {
                 id: number;
                 nickname: string;
                 email: string;
                 profileImg: string | null;
                 badge: string | null;
-            }
+                isOnboarded: boolean | null; // 🔥 이거 한 줄 추가된 거!
+            } | null;
         }
 		// interface PageData {}
 		// interface PageState {}
