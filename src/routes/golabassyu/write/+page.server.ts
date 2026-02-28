@@ -3,6 +3,7 @@ import { golabassyuPosts, ratings, restaurants } from '../../../db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
+import { containsBadWord } from '$lib/server/badwords';
 
 export const actions = {
     createPost: async ({ request, locals }: RequestEvent) => {
@@ -18,6 +19,7 @@ export const actions = {
         const imageUrl = data.get('imageUrl')?.toString() || null;
         const returnTo = data.get('returnTo')?.toString();
 
+        
         // 🔥 [이슈 4] 별점이 1점 미만이면 서버에서도 컷!
         if (rating < 1 || rating > 5) {
             return fail(400, { message: '별점은 1점 이상 주셔야 합니다.' });
@@ -40,6 +42,10 @@ export const actions = {
         const realRestaurantName = targetRestaurant.placeName;
         const autoArea = targetRestaurant.zone || '기타';
         const title = realRestaurantName + " 후기";
+
+        if (containsBadWord(title) || containsBadWord(content)) {
+            return fail(400, { message: '욕설이나 비속어는 등록할 수 없습니다.' });
+        }
 
         try {
             await db.insert(golabassyuPosts).values({

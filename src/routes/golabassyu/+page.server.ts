@@ -4,8 +4,10 @@ import { desc, eq, sql, and } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
+// 🔥 욕설 필터링 함수 (경로 맞춰서 넣어주세요)
+import { containsBadWord } from '$lib/server/badwords'; 
+
 export const load: PageServerLoad = async ({ locals, url }) => {
-    // ... 기존 코드 동일 ...
     const currentUser = locals.user;
     const currentUserId = currentUser ? currentUser.id : 0;
 
@@ -48,12 +50,59 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-    // ... 기존 updatePost, deletePost 유지 ...
+    // ▼▼▼ 게시글 수정 로직 완비 ▼▼▼
     updatePost: async ({ request, locals }) => {
-        /* 기존 코드 동일 */
+        if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
+
+        const data = await request.formData();
+        const postId = Number(data.get('postId'));
+        const content = data.get('content')?.toString() || '';
+        const rating = Number(data.get('rating')) || 0;
+
+        if (!postId) return fail(400, { message: '잘못된 요청입니다.' });
+        if (containsBadWord(content)) return fail(400, { message: '욕설이나 비속어는 등록할 수 없습니다.' });
+
+        // 1. 해당 게시글이 진짜 있는지 찾기
+        const post = await db.query.golabassyuPosts.findFirst({
+            where: eq(golabassyuPosts.id, postId)
+        });
+
+        // 2. [보안] 글 작성자 본인이 맞는지 확인! (QA 조작 방어)
+        if (!post || post.userId !== locals.user.id) {
+            return fail(403, { message: '수정 권한이 없습니다.' });
+        }
+
+        // 3. 진짜 DB 업데이트!
+        await db.update(golabassyuPosts)
+            .set({ content, rating })
+            .where(eq(golabassyuPosts.id, postId));
+
+        return { success: true };
     },
+
+    // ▼▼▼ 게시글 삭제 로직 완비 ▼▼▼
     deletePost: async ({ request, locals }) => {
-        /* 기존 코드 동일 */
+        if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
+
+        const data = await request.formData();
+        const postId = Number(data.get('postId'));
+
+        if (!postId) return fail(400, { message: '잘못된 요청입니다.' });
+
+        // 1. 해당 게시글이 진짜 있는지 찾기
+        const post = await db.query.golabassyuPosts.findFirst({
+            where: eq(golabassyuPosts.id, postId)
+        });
+
+        // 2. [보안] 글 작성자 본인이 맞는지 확인! (QA 조작 방어)
+        if (!post || post.userId !== locals.user.id) {
+            return fail(403, { message: '삭제 권한이 없습니다.' });
+        }
+
+        // 3. 진짜 DB 삭제! (이제 다녀왔슈에서도 영원히 안 보임!)
+        await db.delete(golabassyuPosts).where(eq(golabassyuPosts.id, postId));
+
+        return { success: true };
     },
 
     // ▼▼▼ 댓글 삭제 액션 (유지) ▼▼▼
@@ -77,5 +126,4 @@ export const actions: Actions = {
         await db.delete(golabassyuComments).where(eq(golabassyuComments.id, commentId));
         return { success: true };
     }
-    // ▼▼▼ toggleCommentLike 삭제 완료 ▼▼▼
 };
