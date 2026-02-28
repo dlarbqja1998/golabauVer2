@@ -99,6 +99,12 @@
         const files = inputElement.files;
         
         if (!files || files.length === 0) return;
+
+        // 🔥 [디버깅 추가] 갤럭시 S24가 도대체 뭘 주는지 화면에 띄워보자!!
+        const testFile = files[0];
+        const mbSize = (testFile.size / (1024 * 1024)).toFixed(2);
+        alert(`[S24 파일 정보]\n이름: ${testFile.name}\n크기: ${mbSize} MB\n타입: ${testFile.type}`);
+        // ---------------------------------------------------------
         isUploading = true;
 
         try {
