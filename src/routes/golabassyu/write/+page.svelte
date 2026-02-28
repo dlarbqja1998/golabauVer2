@@ -95,7 +95,10 @@
     }
 
     async function handleImageUpload(e) {
-        const files = e.target.files;
+        // 🔥 [핵심 1] 이벤트 타겟을 제일 먼저 변수에 꽉 묶어둠! (나중에 증발하는 거 방지)
+        const inputElement = e.target;
+        const files = inputElement.files;
+        
         if (!files || files.length === 0) return;
         isUploading = true;
 
@@ -106,23 +109,36 @@
                 
                 try {
                     const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                    const data = await res.json();
                     
-                    if (!res.ok) {
-                        showToast(`⚠️ ${data.error}`);
+                    // 🔥 [핵심 2] Cloudflare가 용량 제한으로 뱉은 에러(413)를 먼저 캐치!
+                    if (res.status === 413) {
+                        showToast('⚠️ 폰 사진 용량이 너무 큽니다! (서버 제한)');
+                        continue; // 다음 사진으로 넘어감
+                    }
+
+                    // 서버가 정상적인 응답을 줬을 때만 JSON 파싱 시도
+                    const data = await res.json().catch(() => null); 
+                    
+                    if (!res.ok || !data) {
+                        showToast(`⚠️ 업로드 실패: ${data?.error || '알 수 없는 서버 에러'}`);
                         continue; 
                     }
                     
-                    if (data.url) uploadedUrls.push(data.url);
+                    if (data.url) {
+                        uploadedUrls.push(data.url);
+                    }
                 } catch (err) {
-                    showToast('이미지 업로드 중 오류가 발생했습니다.');
+                    console.error(err);
+                    showToast('🚨 통신 에러: 인터넷이 끊겼거나 서버가 응답하지 않습니다.');
                 }
             }
         } finally {
-            // 🔥 핵심: 업로드에 성공하든 실패하든 무조건 로딩을 끄고 입력창을 비워준다!
-            // 그래야 아까 올렸던 사진을 또 선택해도 다시 정상적으로 올라감!
+            // 🔥 [핵심 3] 처음에 묶어둔 변수를 써서 파일 입력창 완벽하게 초기화! 
+            // 성공하든 에러가 터지든 무조건 이 코드가 실행돼서 먹통을 100% 방지함.
             isUploading = false;
-            e.target.value = ''; 
+            if (inputElement) {
+                inputElement.value = ''; 
+            }
         }
     }
 
