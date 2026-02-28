@@ -3,11 +3,10 @@
     import { page } from '$app/stores'; 
     import { onMount } from 'svelte';
     import { enhance } from '$app/forms'; 
-    import { fly } from 'svelte/transition'; // 🔥 애니메이션 추가!
+    import { fly } from 'svelte/transition';
 
     let { form } = $props(); 
 
-    // 🔥 토스트 알림 상태 및 함수 (스크립트 안으로 쏙!)
     let toastMessage = $state('');
     let toastTimeout;
 
@@ -34,30 +33,26 @@
 
     let content = $state(form?.content || '');
 
-    // 🔥 서버 에러 메시지 띄우기
     $effect(() => {
-        if (form?.error) {
+        if (form?.message) {
             showToast(form.message);
         }
     });
 
     onMount(() => {
-        // 🔥 적나라한 파라미터 대신 암호화된 token을 먼저 찾음!
         const token = $page.url.searchParams.get('token');
 
         if (token) {
             try {
-                // 외계어(Base64)를 다시 원래 객체로 복호화 (해독)
                 const decoded = JSON.parse(decodeURIComponent(atob(token)));
                 selectedRestaurant = { name: decoded.name, id: Number(decoded.id), category: '' };
-                isLocked = true; // 식당 변경 불가 모드로 잠금!
+                isLocked = true; 
                 returnToUrl = decoded.returnTo;
             } catch (e) {
                 console.error("토큰 해독 실패:", e);
                 showToast('⚠️ 비정상적인 접근입니다.');
             }
         } else {
-            // (혹시 모를 하위 호환성을 위해 남겨둠) 토큰이 없으면 기존 방식 체크
             const paramId = $page.url.searchParams.get('restaurantId');
             const paramName = $page.url.searchParams.get('restaurantName');
             const paramReturn = $page.url.searchParams.get('returnTo');
@@ -148,9 +143,17 @@
         action="?/createPost" 
         class="flex flex-col flex-1"
         use:enhance={({ cancel }) => {
+            // 🔥 [이슈 4] 1. 식당 선택 확인
             if (!selectedRestaurant.id) {
                 showToast('⚠️ 어떤 식당인지 알려주세요!\n(위치 추가를 눌러 식당을 선택해주세요)');
                 cancel(); 
+                return;
+            }
+            // 🔥 [이슈 4] 2. 별점 0점 차단!
+            if (rating === 0) {
+                showToast('⚠️ 이 식당의 별점을 1점 이상 선택해주세요!');
+                cancel();
+                return;
             }
             return async ({ update }) => {
                 await update({ reset: false }); 
@@ -258,8 +261,8 @@
 </div>
 
 {#if toastMessage}
-    <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 
-         transition:fly={{ y: 20, duration: 300 }}>
+    <div class="fixed top-20 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-[10000] flex items-center gap-2 whitespace-nowrap" 
+         transition:fly={{ y: -20, duration: 300 }}>
         {toastMessage}
     </div>
 {/if}

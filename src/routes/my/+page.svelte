@@ -152,9 +152,11 @@
             {:else}
                 <div class="flex items-center gap-2 mb-1">
                     <h2 class="text-xl font-bold text-gray-900">{user.nickname}</h2>
+                    {#if false}
                     <span class="px-2 py-0.5 bg-red-50 text-red-500 text-[10px] font-bold rounded-md border border-red-100">
                         {user.badge || '신입생'}
                     </span>
+                    {/if}
                 </div>
                 <p class="text-sm text-gray-400 mb-6">{user.college || '단과대 미입력'} | {user.department || '학과 미입력'}</p>
 

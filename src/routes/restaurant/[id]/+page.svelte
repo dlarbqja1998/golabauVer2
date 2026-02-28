@@ -212,11 +212,24 @@
 					<h3 class="text-lg font-bold text-gray-900 mb-4 font-['Jua']">
 						{data.myRating ? '내 별점 수정하기' : '이 식당 평가하기'}
 					</h3>
-					<form method="POST" action="?/submitRating" use:enhance={() => {
+					<form method="POST" action="?/submitRating" use:enhance={({ cancel }) => {
+							// 🔥 프론트엔드에서 0점 전송 원천 차단!
+							if (ratingScore === 0) {
+								showToast('⚠️ 별점을 1점 이상 선택해주세요!');
+								cancel(); 
+								return;
+							}
+
 							return async ({ update, result }) => { 
-								await update(); 
-								if (result.type === 'success') showToast('별점이 반영되었습니다! ⭐'); 
-								else showToast('별점 등록에 실패했습니다 🥲');
+								await update({ reset: false }); 
+								if (result.type === 'success') {
+									showToast('별점이 반영되었습니다! ⭐'); 
+								} else if (result.type === 'failure') {
+									// 서버에서 보낸 에러 메시지(400) 띄워주기
+									showToast(result.data?.message || '별점 등록에 실패했습니다 🥲');
+								} else {
+									showToast('별점 등록에 실패했습니다 🥲');
+								}
 							};
 						}} class="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-center shadow-sm">
 						

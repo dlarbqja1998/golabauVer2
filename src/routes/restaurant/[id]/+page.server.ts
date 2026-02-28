@@ -72,7 +72,7 @@ export const actions: Actions = {
         const restaurantId = Number(params.id);
         const userId = locals.user.id;
 
-        if (!rating || rating < 1 || rating > 5) return fail(400);
+        if (!rating || rating < 1 || rating > 5) return fail(400, {message: '별점은 1점 이상 주셔야 합니다.'});
 
         try {
             const existingRating = await db.select().from(ratings)

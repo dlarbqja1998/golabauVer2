@@ -12,30 +12,39 @@ export const actions = {
 
         const data = await request.formData();
         
-        const restaurantName = data.get('restaurantName')?.toString() || '';
         const restaurantId = Number(data.get('restaurantId')); 
         const rating = Number(data.get('rating')) || 0;        
-        const title = data.get('title')?.toString() || '';
         const content = data.get('content')?.toString() || '';
         const imageUrl = data.get('imageUrl')?.toString() || null;
-        
-        // 🔥 어디로 돌아가야 하는지 파라미터 확인
         const returnTo = data.get('returnTo')?.toString();
 
-        let autoArea = '기타';
-        if (restaurantId && restaurantId > 0) {
-            const targetRestaurant = await db.query.restaurants.findFirst({
-                where: eq(restaurants.id, restaurantId)
-            });
-            if (targetRestaurant && targetRestaurant.zone) {
-                autoArea = targetRestaurant.zone;
-            }
+        // 🔥 [이슈 4] 별점이 1점 미만이면 서버에서도 컷!
+        if (rating < 1 || rating > 5) {
+            return fail(400, { message: '별점은 1점 이상 주셔야 합니다.' });
         }
+
+        // 🔥 [이슈 3: 폼 변조 방지] 유저가 보낸 이름은 싹 무시! 무조건 ID로 DB에서 직접 찾기!
+        if (!restaurantId || restaurantId <= 0) {
+            return fail(400, { message: '유효하지 않은 식당입니다.' });
+        }
+
+        const targetRestaurant = await db.query.restaurants.findFirst({
+            where: eq(restaurants.id, restaurantId)
+        });
+
+        if (!targetRestaurant) {
+            return fail(400, { message: '존재하지 않는 식당입니다. 비정상적인 접근입니다.' });
+        }
+
+        // DB에 있는 진짜 데이터를 강제로 사용 (변조 방지 100%)
+        const realRestaurantName = targetRestaurant.placeName;
+        const autoArea = targetRestaurant.zone || '기타';
+        const title = realRestaurantName + " 후기";
 
         try {
             await db.insert(golabassyuPosts).values({
                 userId: locals.user.id, 
-                restaurantName: restaurantName,
+                restaurantName: realRestaurantName, // 유저 폼데이터 대신 DB 이름 삽입
                 restaurantId: restaurantId,
                 rating: rating,
                 title: title,
@@ -45,16 +54,15 @@ export const actions = {
                 likes: 0
             });
 
-            if (restaurantId && restaurantId > 0 && rating > 0) {
-                try {
-                    await db.insert(ratings).values({
-                        restaurantId: restaurantId,
-                        rating: rating,
-                        userId: locals.user.id, 
-                    });
-                } catch (e) {
-                    console.error("평점 반영 실패:", e);
-                }
+            // 식당 별점(ratings) 업데이트
+            try {
+                await db.insert(ratings).values({
+                    restaurantId: restaurantId,
+                    rating: rating,
+                    userId: locals.user.id, 
+                });
+            } catch (e) {
+                console.error("평점 반영 실패:", e);
             }
 
         } catch (err) {
@@ -62,7 +70,6 @@ export const actions = {
             return fail(500, { message: '글 저장에 실패했습니다.' });
         }
 
-        // 🔥 상세페이지에서 왔다면 그곳으로 돌려보내기! 아니면 골라바쓔로!
         if (returnTo) {
             throw redirect(303, returnTo);
         }
