@@ -95,7 +95,6 @@
     }
 
     async function handleImageUpload(e) {
-        // 🔥 [핵심 1] 이벤트 타겟을 제일 먼저 변수에 꽉 묶어둠! (나중에 증발하는 거 방지)
         const inputElement = e.target;
         const files = inputElement.files;
         
@@ -104,23 +103,38 @@
 
         try {
             for (let i = 0; i < files.length; i++) {
+                let currentFile = files[i]; // 현재 처리할 파일
+                
+                // 🔥 [핵심] 갤러리 앱이 파일 타입(MIME)을 누락시킨 경우 심폐소생술!
+                if (!currentFile.type || currentFile.type === '') {
+                    // 파일 이름에서 확장자(jpg, png 등)를 뽑아냄
+                    const ext = currentFile.name.split('.').pop().toLowerCase();
+                    let fallbackType = 'image/jpeg'; // 기본값은 무난한 JPEG로 강제 지정
+                    
+                    if (ext === 'png') fallbackType = 'image/png';
+                    else if (ext === 'webp') fallbackType = 'image/webp';
+                    else if (ext === 'gif') fallbackType = 'image/gif';
+                    
+                    // 껍데기만 있던 파일에 '타입(type)' 이름표를 붙여서 새로운 파일로 복제!
+                    currentFile = new File([currentFile], currentFile.name || 'image.jpg', { type: fallbackType });
+                }
+
                 const formData = new FormData();
-                formData.append('image', files[i]);
+                // 똥볼 찬 원본 대신, 이름표가 예쁘게 붙은 currentFile을 서버로 보냄!
+                formData.append('image', currentFile); 
                 
                 try {
                     const res = await fetch('/api/upload', { method: 'POST', body: formData });
                     
-                    // 🔥 [핵심 2] Cloudflare가 용량 제한으로 뱉은 에러(413)를 먼저 캐치!
                     if (res.status === 413) {
-                        showToast('⚠️ 폰 사진 용량이 너무 큽니다! (서버 제한)');
-                        continue; // 다음 사진으로 넘어감
+                        showToast('⚠️ 폰 사진 용량이 너무 큽니다! (15MB 이하만 가능)');
+                        continue; 
                     }
 
-                    // 서버가 정상적인 응답을 줬을 때만 JSON 파싱 시도
                     const data = await res.json().catch(() => null); 
                     
                     if (!res.ok || !data) {
-                        showToast(`⚠️ 업로드 실패: ${data?.error || '알 수 없는 서버 에러'}`);
+                        showToast(`⚠️ 업로드 실패: ${data?.error || '알 수 없는 에러'}`);
                         continue; 
                     }
                     
@@ -133,11 +147,9 @@
                 }
             }
         } finally {
-            // 🔥 [핵심 3] 처음에 묶어둔 변수를 써서 파일 입력창 완벽하게 초기화! 
-            // 성공하든 에러가 터지든 무조건 이 코드가 실행돼서 먹통을 100% 방지함.
             isUploading = false;
             if (inputElement) {
-                inputElement.value = ''; 
+                inputElement.value = ''; // 먹통 방지용 초기화
             }
         }
     }
@@ -220,7 +232,7 @@
                         <ImageIcon size={48} class="text-gray-300 mb-2" />
                         <span class="text-sm text-gray-400 font-bold">사진을 올려주세요 (여러 장 가능)</span>
                     {/if}
-                    <input type="file" accept="image/jpeg, image/png, image/webp" multiple class="hidden" onchange={handleImageUpload} />
+                    <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
                 </label>
             {/if}
         </div>
