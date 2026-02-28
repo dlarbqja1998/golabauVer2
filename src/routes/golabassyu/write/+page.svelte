@@ -103,24 +103,21 @@
 
         try {
             for (let i = 0; i < files.length; i++) {
-                let currentFile = files[i]; // 현재 처리할 파일
+                let currentFile = files[i]; 
                 
-                // 🔥 [핵심] 갤러리 앱이 파일 타입(MIME)을 누락시킨 경우 심폐소생술!
+                // 🔥 [방어 1] 갤러리 앱이 파일 타입(MIME)을 누락시킨 경우 심폐소생술!
                 if (!currentFile.type || currentFile.type === '') {
-                    // 파일 이름에서 확장자(jpg, png 등)를 뽑아냄
                     const ext = currentFile.name.split('.').pop().toLowerCase();
-                    let fallbackType = 'image/jpeg'; // 기본값은 무난한 JPEG로 강제 지정
+                    let fallbackType = 'image/jpeg'; 
                     
                     if (ext === 'png') fallbackType = 'image/png';
                     else if (ext === 'webp') fallbackType = 'image/webp';
                     else if (ext === 'gif') fallbackType = 'image/gif';
                     
-                    // 껍데기만 있던 파일에 '타입(type)' 이름표를 붙여서 새로운 파일로 복제!
                     currentFile = new File([currentFile], currentFile.name || 'image.jpg', { type: fallbackType });
                 }
 
                 const formData = new FormData();
-                // 똥볼 찬 원본 대신, 이름표가 예쁘게 붙은 currentFile을 서버로 보냄!
                 formData.append('image', currentFile); 
                 
                 try {
@@ -147,9 +144,10 @@
                 }
             }
         } finally {
+            // 🔥 [방어 2] 화면 굳는 거 무조건 막아줌
             isUploading = false;
             if (inputElement) {
-                inputElement.value = ''; // 먹통 방지용 초기화
+                inputElement.value = ''; 
             }
         }
     }
@@ -172,19 +170,51 @@
         </button>
     </header>
 
+    <div class="w-full bg-gray-50 border-b border-gray-100 relative group overflow-hidden">
+        {#if uploadedUrls.length > 0}
+            <div class="flex overflow-x-auto p-4 gap-3 no-scrollbar snap-x">
+                {#each uploadedUrls as url, i}
+                    <div class="relative min-w-[200px] h-[200px] snap-center shrink-0">
+                        <img src={url} alt="preview" class="w-full h-full object-cover rounded-lg shadow-sm" />
+                        <button type="button" onclick={() => removeImage(i)} class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500">
+                            <X size={16} />
+                        </button>
+                    </div>
+                {/each}
+                <label class="flex flex-col items-center justify-center min-w-[100px] h-[200px] bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 shrink-0 border-2 border-dashed border-gray-300">
+                    {#if isUploading}
+                        <Loader2 class="animate-spin text-gray-400" size={24} />
+                    {:else}
+                        <ImageIcon size={32} class="text-gray-400 mb-1" />
+                        <span class="text-xs text-gray-500 font-bold">추가</span>
+                    {/if}
+                    <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
+                </label>
+            </div>
+        {:else}
+            <label class="flex flex-col items-center justify-center w-full aspect-square cursor-pointer hover:bg-gray-100 transition-colors">
+                {#if isUploading}
+                    <Loader2 class="animate-spin text-gray-400" size={32} />
+                {:else}
+                    <ImageIcon size={48} class="text-gray-300 mb-2" />
+                    <span class="text-sm text-gray-400 font-bold">사진을 올려주세요 (여러 장 가능)</span>
+                {/if}
+                <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
+            </label>
+        {/if}
+    </div>
+
     <form 
         id="instaForm" 
         method="POST" 
         action="?/createPost" 
         class="flex flex-col flex-1"
         use:enhance={({ cancel }) => {
-            // 🔥 [이슈 4] 1. 식당 선택 확인
             if (!selectedRestaurant.id) {
                 showToast('⚠️ 어떤 식당인지 알려주세요!\n(위치 추가를 눌러 식당을 선택해주세요)');
                 cancel(); 
                 return;
             }
-            // 🔥 [이슈 4] 2. 별점 0점 차단!
             if (rating === 0) {
                 showToast('⚠️ 이 식당의 별점을 1점 이상 선택해주세요!');
                 cancel();
@@ -202,40 +232,6 @@
         <input type="hidden" name="imageUrl" value={uploadedUrls.join(',')} />
         <input type="hidden" name="title" value={selectedRestaurant.name ? selectedRestaurant.name + " 후기" : "맛집 후기"} />
         <input type="hidden" name="returnTo" value={returnToUrl} />
-
-        <div class="w-full bg-gray-50 border-b border-gray-100 relative group overflow-hidden">
-            {#if uploadedUrls.length > 0}
-                <div class="flex overflow-x-auto p-4 gap-3 no-scrollbar snap-x">
-                    {#each uploadedUrls as url, i}
-                        <div class="relative min-w-[200px] h-[200px] snap-center shrink-0">
-                            <img src={url} alt="preview" class="w-full h-full object-cover rounded-lg shadow-sm" />
-                            <button type="button" onclick={() => removeImage(i)} class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500">
-                                <X size={16} />
-                            </button>
-                        </div>
-                    {/each}
-                    <label class="flex flex-col items-center justify-center min-w-[100px] h-[200px] bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 shrink-0 border-2 border-dashed border-gray-300">
-                        {#if isUploading}
-                            <Loader2 class="animate-spin text-gray-400" size={24} />
-                        {:else}
-                            <ImageIcon size={32} class="text-gray-400 mb-1" />
-                            <span class="text-xs text-gray-500 font-bold">추가</span>
-                        {/if}
-                        <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
-                    </label>
-                </div>
-            {:else}
-                <label class="flex flex-col items-center justify-center w-full aspect-square cursor-pointer hover:bg-gray-100 transition-colors">
-                    {#if isUploading}
-                        <Loader2 class="animate-spin text-gray-400" size={32} />
-                    {:else}
-                        <ImageIcon size={48} class="text-gray-300 mb-2" />
-                        <span class="text-sm text-gray-400 font-bold">사진을 올려주세요 (여러 장 가능)</span>
-                    {/if}
-                    <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
-                </label>
-            {/if}
-        </div>
 
         <div class="p-4 flex flex-col gap-6">
             <div class="flex flex-col gap-2 items-center">
