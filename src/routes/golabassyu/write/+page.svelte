@@ -99,24 +99,31 @@
         if (!files || files.length === 0) return;
         isUploading = true;
 
-        for (let i = 0; i < files.length; i++) {
-            const formData = new FormData();
-            formData.append('image', files[i]);
-            try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const formData = new FormData();
+                formData.append('image', files[i]);
                 
-                if (!res.ok) {
-                    showToast(`⚠️ ${data.error}`);
-                    continue; 
+                try {
+                    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    
+                    if (!res.ok) {
+                        showToast(`⚠️ ${data.error}`);
+                        continue; 
+                    }
+                    
+                    if (data.url) uploadedUrls.push(data.url);
+                } catch (err) {
+                    showToast('이미지 업로드 중 오류가 발생했습니다.');
                 }
-                
-                if (data.url) uploadedUrls.push(data.url);
-            } catch (err) {
-                showToast('이미지 업로드 중 오류가 발생했습니다.');
             }
+        } finally {
+            // 🔥 핵심: 업로드에 성공하든 실패하든 무조건 로딩을 끄고 입력창을 비워준다!
+            // 그래야 아까 올렸던 사진을 또 선택해도 다시 정상적으로 올라감!
+            isUploading = false;
+            e.target.value = ''; 
         }
-        isUploading = false;
     }
 
     function removeImage(index) {
@@ -197,7 +204,7 @@
                         <ImageIcon size={48} class="text-gray-300 mb-2" />
                         <span class="text-sm text-gray-400 font-bold">사진을 올려주세요 (여러 장 가능)</span>
                     {/if}
-                    <input type="file" accept="image/*" multiple class="hidden" onchange={handleImageUpload} />
+                    <input type="file" accept="image/jpeg, image/png, image/webp" multiple class="hidden" onchange={handleImageUpload} />
                 </label>
             {/if}
         </div>

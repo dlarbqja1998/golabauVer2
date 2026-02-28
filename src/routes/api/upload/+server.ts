@@ -8,10 +8,10 @@ const R2_BUCKET_NAME = env.R2_BUCKET_NAME;
 const R2_PUBLIC_URL = env.R2_PUBLIC_URL;
 
 // 🔥 1. 허용할 최대 용량 설정 (예: 5MB = 5 * 1024 * 1024 bytes)
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
 
 // 🔥 2. 허용할 진짜 이미지 타입(MIME) 목록
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 export async function POST({ request }: RequestEvent) {
     const formData = await request.formData();
