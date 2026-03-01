@@ -69,11 +69,11 @@
 
             //posthog
             if (typeof window !== 'undefined' && window.posthog) {
-				window.posthog.capture(post.isLiked ? 'like_review' : 'unlike_review', {
-					review_id: post.id,
-					restaurant_name: post.restaurant
-				});
-			}
+                window.posthog.capture(post.isLiked ? 'like_review' : 'unlike_review', {
+                    review_id: post.id,
+                    restaurant_name: post.restaurant
+                });
+            }
         } catch (e) {
             post.isLiked = originalLiked;
             post.likes = originalCount;
@@ -135,11 +135,11 @@
 
                 //posthog
                 if (typeof window !== 'undefined' && window.posthog) {
-					window.posthog.capture('write_comment', {
-						review_id: currentPostId,
-						has_content: true
-					});
-				}
+                    window.posthog.capture('write_comment', {
+                        review_id: currentPostId,
+                        has_content: true
+                    });
+                }
             }
         } catch (e) {
             showToast('댓글 등록에 실패했습니다 🥲');
@@ -324,10 +324,6 @@
                                     </div>
                                 {/each}
                             </div>
-                        </div>
-                    {:else}
-                        <div class="w-full aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center p-6 text-center">
-                            <span class="text-gray-300 font-['Jua'] text-lg mb-2">사진 없는 찐후기</span>
                         </div>
                     {/if}
 
