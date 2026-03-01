@@ -69,6 +69,15 @@
 
     async function executeSearch() {
         if (searchTerm.length < 1) return showToast('식당 이름을 입력해주세요!');
+        
+        //posthog
+        if (typeof window !== 'undefined' && window.posthog) {
+			window.posthog.capture('search_restaurant', {
+				keyword: searchTerm,
+				location: 'write_feed' // 검색 위치가 다름을 명시!
+			});
+		}
+        
         try {
             const res = await fetch(`/api/search-restaurant?q=${searchTerm}`);
             if (res.ok) {
@@ -220,9 +229,19 @@
                 cancel();
                 return;
             }
-            return async ({ update }) => {
-                await update({ reset: false }); 
-            };
+            return async ({ update, result }) => {
+				if (result.type === 'redirect' || result.type === 'success') {
+					if (typeof window !== 'undefined' && window.posthog) {
+						window.posthog.capture('write_review', {
+							restaurant_id: selectedRestaurant.id,
+							restaurant_name: selectedRestaurant.name,
+							rating: rating,
+							has_content: content.length > 0 // 리뷰 내용을 썼는지 안 썼는지
+						});
+					}
+				}
+				await update({ reset: false }); 
+			};
         }}
     >
         

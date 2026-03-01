@@ -31,7 +31,30 @@
         </p>
     </div>
 
-    <form method="POST" use:enhance class="space-y-8 pb-10">
+    <form 
+        method="POST" 
+        class="space-y-8 pb-10"
+        use:enhance={({ formData }) => {
+            //posthog (제출하기 전에 폼 데이터 미리 읽기)
+            const grade = formData.get('grade');
+            const gender = formData.get('gender');
+            const hasCollege = !!formData.get('college');
+
+            return async ({ result, update }) => {
+                //posthog (서버 성공 응답이 오면 PostHog로 전송!)
+                if (result.type === 'success' || result.type === 'redirect') {
+                    if (typeof window !== 'undefined' && window.posthog) {
+                        window.posthog.capture('complete_onboarding', {
+                            grade: grade,
+                            gender: gender,
+                            has_college: hasCollege
+                        });
+                    }
+                }
+                await update(); 
+            };
+        }}
+    >
         
         <div>
             <label for="nickname" class="block text-sm font-bold text-gray-700 mb-2">닉네임 <span class="text-red-500">*</span></label>

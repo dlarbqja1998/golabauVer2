@@ -19,6 +19,17 @@
 			return list.sort((a, b) => (a.distanceInMeters || 9999) - (b.distanceInMeters || 9999)); 
 		}
 	});
+
+	$effect(() => {
+		// 검색어(query)가 있고, PostHog가 로드되었을 때만 쏜다!
+		if (typeof window !== 'undefined' && window.posthog && query) {
+			window.posthog.capture('search_restaurant', {
+				keyword: query, // 유저가 검색한 단어
+				result_count: data.restaurants?.length || 0, // 검색 결과 갯수
+				location: 'search_tab' // 어디서 검색했는지 (검색탭)
+			});
+		}
+	});
 </script>
 
 <div class="flex flex-col w-full min-h-screen bg-[#F8F9FA] max-w-md mx-auto pb-24">

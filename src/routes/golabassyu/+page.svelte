@@ -66,6 +66,14 @@
                 const data = await res.json();
                 throw new Error(data.error); 
             }
+
+            //posthog
+            if (typeof window !== 'undefined' && window.posthog) {
+				window.posthog.capture(post.isLiked ? 'like_review' : 'unlike_review', {
+					review_id: post.id,
+					restaurant_name: post.restaurant
+				});
+			}
         } catch (e) {
             post.isLiked = originalLiked;
             post.likes = originalCount;
@@ -124,6 +132,14 @@
                     targetPost.commentCount = (targetPost.commentCount || 0) + 1;
                 }
                 showToast('댓글이 등록되었습니다! 💬');
+
+                //posthog
+                if (typeof window !== 'undefined' && window.posthog) {
+					window.posthog.capture('write_comment', {
+						review_id: currentPostId,
+						has_content: true
+					});
+				}
             }
         } catch (e) {
             showToast('댓글 등록에 실패했습니다 🥲');

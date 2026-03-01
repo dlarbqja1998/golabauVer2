@@ -4,7 +4,7 @@
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 
 	// Svelte 5 Props
-	let { children } = $props();
+	let { data, children } = $props();
 
 	// ==========================================
 	//  [DAE] 사용자 행동 추적기 (CCTV 시스템) V2
@@ -79,6 +79,34 @@
 
 		sendLog('click', label);
 	}
+	// ==========================================
+	//  [PostHog Who] 유저 명찰(Identify) 달아주기
+	// ==========================================
+	$effect(() => {
+		// 브라우저이고, PostHog가 켜져있고, 로그인한 유저 데이터(data.user)가 있을 때 딱 쏜다!
+		if (typeof window !== 'undefined' && window.posthog && data?.user) {
+			const user = data.user;
+			
+			// 1. 유저 고유 ID (카카오 고유번호 등)로 신분증 발급!
+			window.posthog.identify(user.id);
+			
+			// 2. 유저의 상세 프로필(DB에 있는 온보딩 정보)을 PostHog에 등록!
+			window.posthog.people.set({
+				nickname: user.nickname,
+				grade: user.grade,        // 예: '3학년'
+				gender: user.gender,      // 예: 'male'
+				birth_year: user.birthYear,
+				college: user.college,    // 예: '경상대학'
+				department: user.department // 예: '경영학과'
+			});
+		} else if (typeof window !== 'undefined' && window.posthog && !data?.user) {
+			// (선택) 로그아웃 상태면 명찰을 초기화해서 완전 익명으로 만듦
+			window.posthog.reset();
+		}
+	});
+
+
+
 </script>
 
 <svelte:head>
