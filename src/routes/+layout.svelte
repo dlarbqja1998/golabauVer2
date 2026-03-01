@@ -3,110 +3,32 @@
 	import { page } from '$app/stores';
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 
-	// Svelte 5 Props
+	// Svelte 5 Props (data 추가!)
 	let { data, children } = $props();
 
 	// ==========================================
-	//  [DAE] 사용자 행동 추적기 (CCTV 시스템) V2
-	// ==========================================
-	
-	let lastPath = $state(''); // 이전 경로
-	let enterTime = $state(Date.now()); // 진입 시간
-
-	// 1. 로그 전송 함수
-	async function sendLog(type, target, meta = {}) {
-		if (typeof window === 'undefined') return;
-
-		try {
-			const isMobile = /Mobi/i.test(navigator.userAgent);
-			
-			await fetch('/api/log', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					actionType: type,
-					target: target || 'unknown',
-					metadata: {
-						...meta,
-						url: window.location.href,
-						device: isMobile ? 'mobile' : 'desktop',
-						timestamp: new Date().toISOString()
-					}
-				})
-			});
-		} catch (e) {
-			console.warn('[Log Error]', e);
-		}
-	}
-
-	// 2. 페이지 이동 및 체류시간 추적 ($effect)
-	$effect(() => {
-		const currentPath = $page.url.pathname;
-
-		// (A) 초기 진입
-		if (!lastPath) {
-			lastPath = currentPath;
-			enterTime = Date.now();
-			sendLog('page_view', currentPath);
-			return;
-		}
-
-		// (B) 페이지 변경 시
-		if (lastPath !== currentPath) {
-			const duration = (Date.now() - enterTime) / 1000;
-			if (duration > 0.5) {
-				sendLog('dwell_time', lastPath, { duration_sec: duration.toFixed(1) });
-			}
-
-			sendLog('page_view', currentPath);
-			lastPath = currentPath;
-			enterTime = Date.now();
-		}
-	});
-
-	// 3. 클릭 감지 (노이즈 필터링 적용)
-	function handleGlobalClick(event) {
-		const el = event.target.closest('a, button, input, select, textarea, [role="button"]');
-		
-		if (!el) return; // 빈 공간 무시
-
-		// 라벨 추출
-		let label = el.getAttribute('aria-label') || el.innerText || el.getAttribute('name') || el.id || el.getAttribute('href') || '';
-		label = label.replace(/\s+/g, ' ').trim().substring(0, 30);
-
-		// ⭐ unknown 필터링 (서버로 안 보냄)
-		if (!label || label.toLowerCase() === 'unknown') return;
-
-		sendLog('click', label);
-	}
-	// ==========================================
-	//  [PostHog Who] 유저 명찰(Identify) 달아주기
+	// 🔥 [PostHog Who] 유저 명찰(Identify) 달아주기
 	// ==========================================
 	$effect(() => {
-		// 브라우저이고, PostHog가 켜져있고, 로그인한 유저 데이터(data.user)가 있을 때 딱 쏜다!
 		if (typeof window !== 'undefined' && window.posthog && data?.user) {
 			const user = data.user;
 			
-			// 1. 유저 고유 ID (카카오 고유번호 등)로 신분증 발급!
+			// 1. 유저 고유 ID로 신분증 발급!
 			window.posthog.identify(user.id);
 			
-			// 2. 유저의 상세 프로필(DB에 있는 온보딩 정보)을 PostHog에 등록!
+			// 2. 유저의 상세 프로필 등록!
 			window.posthog.people.set({
 				nickname: user.nickname,
-				grade: user.grade,        // 예: '3학년'
-				gender: user.gender,      // 예: 'male'
+				grade: user.grade,        
+				gender: user.gender,      
 				birth_year: user.birthYear,
-				college: user.college,    // 예: '경상대학'
-				department: user.department // 예: '경영학과'
+				college: user.college,    
+				department: user.department 
 			});
 		} else if (typeof window !== 'undefined' && window.posthog && !data?.user) {
-			// (선택) 로그아웃 상태면 명찰을 초기화해서 완전 익명으로 만듦
-			window.posthog.reset();
+			window.posthog.reset(); // 로그아웃 시 익명 처리
 		}
 	});
-
-
-
 </script>
 
 <svelte:head>
@@ -116,15 +38,6 @@
 	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 	<link rel="manifest" href="/manifest.webmanifest" />
 </svelte:head>
-
-<svelte:window 
-	onclick={handleGlobalClick}
-	onbeforeunload={() => {
-		// 탭 닫을 때 체류시간 전송 (변수명 enterTime으로 통일)
-		const duration = (Date.now() - enterTime) / 1000;
-		sendLog('dwell_time', lastPath, { duration_sec: duration.toFixed(1), exit: true });
-	}} 
-/>
 
 <div class="flex flex-col min-h-screen bg-[#F8F9FA]">
 	<main class="flex-1 pb-24">

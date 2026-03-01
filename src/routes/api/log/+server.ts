@@ -1,37 +1,15 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types'; // 👈 타입 추가
-import { db } from '$lib/server/db';
-import { userLogs } from '../../../db/schema'; // 👈 상대 경로로 수정 (폴더 4번 위로)
+import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-    // 1. 데이터 받기
-    const body = await request.json();
-    const { actionType, target, metadata } = body;
+// 🔥 더 이상 Neon DB를 사용하지 않으므로 db 임포트 싹 다 삭제!
+
+export const POST: RequestHandler = async () => {
+    // 🚀 PostHog 도입으로 인해 기존 DB 직접 적재 로직 폐기!
+    // 과거 캐시된 클라이언트에서 혹시라도 요청이 들어오면, 
+    // DB 용량을 파먹지 않도록 그냥 '성공' 응답만 뱉고 빈손으로 돌려보냅니다.
     
-    // 2. 로그인 유저 ID 확인
-    const loginSession = cookies.get('session_id');
-    const userId = loginSession ? parseInt(loginSession) : null;
-
-    // 3. 비로그인 유저 추적용 쿠키 (없으면 생성)
-    let trackingId = cookies.get('tracking_id');
-    if (!trackingId) {
-        trackingId = crypto.randomUUID();
-        cookies.set('tracking_id', trackingId, { 
-            path: '/', 
-            maxAge: 60 * 60 * 24 * 365, // 1년
-            httpOnly: true,
-            sameSite: 'lax'
-        });
-    }
-
-    // 4. DB에 저장 (CCTV 녹화)
-    await db.insert(userLogs).values({
-        userId,
-        sessionId: trackingId,
-        actionType,
-        target,
-        metadata: metadata || {}
+    return json({ 
+        success: true, 
+        message: 'Log migrated to PostHog. No DB action taken.' 
     });
-
-    return json({ success: true });
 };
