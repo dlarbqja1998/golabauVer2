@@ -19,13 +19,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     // 3. 유저가 있으면 event.locals에 저장
     if (user) {
+        // [추가] 만약 밴 당한 유저라면 모든 접근 차단 (로그아웃 처리 등 응용 가능)
+        if (user.isBanned) {
+            return new Response('차단된 사용자입니다.', { status: 403 });
+        }
+
         event.locals.user = {
             id: user.id,
             nickname: user.nickname,
             email: user.email,
             profileImg: user.profileImg,
             badge: user.badge,
-            isOnboarded: user.isOnboarded // 🔥 [핵심 1] 온보딩 했는지 안 했는지 정보 추가!
+            isOnboarded: user.isOnboarded, // 🔥 [핵심 1] 온보딩 했는지 안 했는지 정보 추가!
+            role: user.role // 🔥 [추가] 권한 정보 세션에 저장!
         };
 
         // 🔥 [핵심 2] 온보딩 도망자 강제 납치 로직

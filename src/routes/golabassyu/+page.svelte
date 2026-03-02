@@ -274,7 +274,7 @@
                                 </div>
                             {/if}
 
-                            {#if post.isMine}
+                            {#if post.isMine || currentUser?.role === 'admin'}
                                 <div class="relative">
                                     <button onclick={(e) => { e.stopPropagation(); toggleMenu(post.id); }} class="p-1 text-gray-400 hover:text-black transition-colors rounded-full hover:bg-gray-100">
                                         <MoreVertical size={16} />
@@ -282,9 +282,12 @@
                                     
                                     {#if activeMenuId === post.id}
                                         <div class="absolute right-0 top-8 bg-white shadow-xl border border-gray-100 rounded-lg overflow-hidden w-28 z-20 flex flex-col" transition:fade={{duration: 100}}>
-                                            <button onclick={() => openEditModal(post)} class="px-3 py-2.5 text-xs text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                                                <Edit2 size={14} /> 수정하기
-                                            </button>
+                                            
+                                            {#if post.isMine}
+                                                <button onclick={() => openEditModal(post)} class="px-3 py-2.5 text-xs text-left hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                                                    <Edit2 size={14} /> 수정하기
+                                                </button>
+                                            {/if}
                                             
                                             <form action="?/deletePost" method="POST" use:enhance={() => {
                                                 return async ({ result }) => {
@@ -471,7 +474,7 @@
                                     <p class="text-sm text-gray-800 leading-snug break-all">{comment.content}</p>
                                 </div>
                                 
-                                {#if currentUser && currentUser.id === comment.userId}
+                                {#if currentUser && (currentUser.id === comment.userId || currentUser.role === 'admin')}
                                     <form method="POST" action="?/deleteComment" use:enhance={() => {
                                         return async ({ result }) => {
                                             if (result.type === 'success') {

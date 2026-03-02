@@ -12,6 +12,7 @@ declare global {
                 profileImg: string | null;
                 badge: string | null;
                 isOnboarded: boolean | null; // 🔥 이거 한 줄 추가된 거!
+                role: string | null; // 🔥 여기에 role을 추가!
             } | null;
         }
 		// interface PageData {}

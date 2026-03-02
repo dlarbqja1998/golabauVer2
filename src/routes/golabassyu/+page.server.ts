@@ -95,7 +95,8 @@ export const actions: Actions = {
         });
 
         // 2. [보안] 글 작성자 본인이 맞는지 확인! (QA 조작 방어)
-        if (!post || post.userId !== locals.user.id) {
+        const isAdmin = locals.user.role === 'admin';
+        if (!post || post.userId !== locals.user.id && !isAdmin) {
             return fail(403, { message: '삭제 권한이 없습니다.' });
         }
 
@@ -119,7 +120,8 @@ export const actions: Actions = {
         });
 
         // 댓글 작성자와 현재 로그인한 유저가 같은지 확인
-        if (!comment || comment.userId !== locals.user.id) {
+        const isAdmin = locals.user.role === 'admin';
+        if (!comment || comment.userId !== locals.user.id && !isAdmin) {
             return fail(403, { message: '삭제 권한이 없습니다.' });
         }
 

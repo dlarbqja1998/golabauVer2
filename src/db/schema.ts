@@ -22,7 +22,11 @@ export const users = pgTable("user", {
     grade: text("grade"),            // 학년 (필수)
     birthYear: integer("birth_year"),    // 연령대(필수)
     gender: text("gender"),         // 성별(필수)
-    isOnboarded: boolean("is_onboarded").default(false) // 추가 정보 입력 했니? (기본값 false)
+    isOnboarded: boolean("is_onboarded").default(false), // 추가 정보 입력 했니? (기본값 false)
+
+    // ▼▼▼ 관리자 및 제재용 컬럼 ▼▼▼
+    role: text("role").default('user'),           // 'user' 또는 'admin'
+    isBanned: boolean("is_banned").default(false) // 악성 유저 밴 처리용
 });
 
 // =========================================================

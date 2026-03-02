@@ -2,15 +2,18 @@
     import { enhance } from '$app/forms';
     import { Settings, Save, Camera } from 'lucide-svelte';
     import { universityData } from '$lib/data/majors';
-    import { fly } from 'svelte/transition'; // 🔥 토스트 애니메이션용 추가
+    import { fly } from 'svelte/transition';
 
-    let { data, form } = $props(); // 🔥 서버에서 날아오는 에러(form) 받기 위해 추가
+    let { data, form } = $props();
     let user = $derived(data.user);
     let myPosts = $derived(data.myPosts);
 
     // 상태 관리
     let isEditing = $state(false);
     let loading = $state(false);
+    
+    // 🔥 [추가] 관리자 입력창 표시 상태
+    let showAdminInput = $state(false);
 
     // 수정 모드용 선택 값
     let editCollege = $state('');
@@ -18,7 +21,7 @@
     // 선택된 단과대에 따라 학과 목록 자동 갱신
     let deptList = $derived(editCollege ? universityData[editCollege] : []);
 
-    // 🔥 토스트 알림 상태 및 함수 추가
+    // 토스트 알림 상태 및 함수 추가
     let toastMessage = $state('');
     let toastTimeout;
 
@@ -30,7 +33,7 @@
         }, 2500); 
     }
 
-    // 🔥 서버에서 에러 뱉었을 때 토스트 띄우기
+    // 서버에서 에러 뱉었을 때 토스트 띄우기
     $effect(() => {
         if (form?.error || form?.message) {
             showToast(`⚠️ ${form.message || '오류가 발생했습니다.'}`);
@@ -50,12 +53,27 @@
             
             if (result.type === 'success') {
                 isEditing = false;
-                showToast('프로필이 수정되었습니다! 🎉'); // 🔥 alert 대신 토스트!
+                showToast('프로필이 수정되었습니다! 🎉');
             } else if (result.type === 'failure') {
                 // 서버에서 fail()로 뱉은 메시지는 위 $effect에서 알아서 잡아줌
             } else {
                 showToast('수정 중 오류가 발생했습니다 🥲');
             }
+        };
+    };
+
+    // 🔥 [추가] 관리자 폼 제출 액션 핸들러
+    const submitAdmin = () => {
+        return async ({ update, result }) => {
+            if (result.type === 'success') {
+                showToast(result.data?.message || '관리자 권한 획득 성공! 👑');
+                showAdminInput = false;
+                // 권한 정보(locals) 갱신을 위해 페이지 새로고침
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showToast(result.data?.message || '비밀코드가 틀렸습니다 ❌');
+            }
+            await update();
         };
     };
 </script>
@@ -152,11 +170,6 @@
             {:else}
                 <div class="flex items-center gap-2 mb-1">
                     <h2 class="text-xl font-bold text-gray-900">{user.nickname}</h2>
-                    {#if false}
-                    <span class="px-2 py-0.5 bg-red-50 text-red-500 text-[10px] font-bold rounded-md border border-red-100">
-                        {user.badge || '신입생'}
-                    </span>
-                    {/if}
                 </div>
                 <p class="text-sm text-gray-400 mb-6">{user.college || '단과대 미입력'} | {user.department || '학과 미입력'}</p>
 
@@ -205,13 +218,41 @@
         {/if}
     </div>
 
-    <div class="text-center mt-8 mb-4">
-        <form action="?/logout" method="POST" use:enhance>
-            <button type="submit" class="text-xs text-gray-300 underline hover:text-red-500 transition-colors">
-                로그아웃
-            </button>
-        </form>
+    <div class="text-center mt-8 mb-4 flex flex-col items-center gap-2">
+        <div class="flex items-center gap-4">
+            <form action="?/logout" method="POST" use:enhance>
+                <button type="submit" class="text-xs text-gray-300 underline hover:text-red-500 transition-colors">
+                    로그아웃
+                </button>
+            </form>
+
+            {#if user.role !== 'admin'}
+                <button onclick={() => showAdminInput = !showAdminInput} class="text-xs text-transparent hover:text-gray-200 transition-colors cursor-default">
+                    π
+                </button>
+            {/if}
+        </div>
+
+        {#if showAdminInput}
+            <form action="?/becomeAdmin" method="POST" use:enhance={submitAdmin} class="flex gap-2 mt-2" transition:fly={{ y: 10 }}>
+                <input 
+                    type="password" 
+                    name="secretCode" 
+                    placeholder="Admin Code" 
+                    class="px-3 py-1 bg-gray-100 border-none rounded-md text-xs focus:ring-0 outline-none"
+                />
+                <button type="submit" class="px-3 py-1 bg-black text-white text-xs rounded-md font-bold">인증</button>
+            </form>
+        {/if}
     </div>
+
+    {#if user.role === 'admin'}
+        <div class="text-center mt-2 mb-8">
+            <span class="text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-200 shadow-sm">
+                👑 관리자 모드 활성화됨
+            </span>
+        </div>
+    {/if}
 
     {#if toastMessage}
         <div class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-50 flex items-center gap-2 whitespace-nowrap" 

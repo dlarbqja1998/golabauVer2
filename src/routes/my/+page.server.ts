@@ -3,6 +3,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { users, golabassyuPosts } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
+// 🔥 수정됨: dynamic 대신 static으로 불러와야 오류가 안 납니다!
+import { env } from '$env/dynamic/private';
 
 // 1. 데이터 불러오기 (기존 동일)
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -31,7 +33,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     return { user: userInfo, myPosts };
 };
 
-// 2. 액션 (수정 로직 업데이트)
+// 2. 액션 (🔥 하나의 actions 객체 안에 모두 넣어야 합니다!)
 export const actions: Actions = {
     logout: async ({ cookies }) => {
         cookies.delete('session_id', { path: '/' });
@@ -72,6 +74,31 @@ export const actions: Actions = {
         } catch (error) {
             console.error('프로필 수정 에러:', error);
             return fail(500, { message: '수정에 실패했습니다.' });
+        }
+    },
+
+    // 🔥 기존 actions 안에 becomeAdmin을 추가했습니다! (request, locals 타입 에러도 해결됨)
+    becomeAdmin: async ({ request, locals }) => {
+        const sessionUser = locals.user;
+        if (!sessionUser) return fail(401, { message: '로그인이 필요합니다.' });
+
+        const data = await request.formData();
+        const secretCode = data.get('secretCode')?.toString();
+
+        // 1. 비밀번호 일치 확인
+        if (secretCode !== env.ADMIN_SECRET_KEY) {
+            return fail(400, { message: '비밀코드가 틀렸습니다.' });
+        }
+
+        // 2. 일치하면 DB에서 해당 유저의 role을 'admin'으로 변경
+        try {
+            await db.update(users)
+                .set({ role: 'admin' })
+                .where(eq(users.id, sessionUser.id));
+
+            return { success: true, message: '관리자 권한이 활성화되었습니다! 👑' };
+        } catch (error) {
+            return fail(500, { message: '권한 변경 중 오류가 발생했습니다.' });
         }
     }
 };
