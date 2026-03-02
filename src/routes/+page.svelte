@@ -3,11 +3,24 @@
 	import { getTodaySchedule } from '$lib/data/busSchedule'; 
 	import { onMount } from 'svelte';
 	import { X, Mail, Send, ChevronDown, ChevronUp } from 'lucide-svelte';
-	import { slide } from 'svelte/transition';
+	import { slide, fly } from 'svelte/transition'; // 🔥 fly 애니메이션 추가
 
 	let { data } = $props();
 	
 	let categories = $derived(data?.maincategory || []);
+	let user = $derived(data?.user); // 🔥 +page.server.ts에서 넘어온 로그인 유저 정보
+
+	// ▼▼▼ [토스트 알림 로직] ▼▼▼
+	let toastMessage = $state('');
+	let toastTimeout;
+
+	function showToast(msg) {
+		toastMessage = msg;
+		if (toastTimeout) clearTimeout(toastTimeout);
+		toastTimeout = setTimeout(() => {
+			toastMessage = '';
+		}, 2500); // 2.5초 후 사라짐
+	}
 
 	// ▼▼▼ [학식 로직] ▼▼▼
 	let todayMenu = $derived(data?.todayMenu);
@@ -114,9 +127,18 @@
 		}
 	});
 
+	// 🔥 로그인 체크 핸들러 추가
+	function handleContactClick() {
+		if (!user) {
+			showToast('로그인 후 이용할 수 있어요! 🔒');
+			return;
+		}
+		isContactModalOpen = true;
+	}
+
 	async function sendInquiry() {
 		if (!contactContent.trim()) {
-			alert('내용을 입력해주세요!');
+			showToast('내용을 입력해주세요! ✍️'); // 🔥 alert -> showToast
 			return;
 		}
 		isSending = true;
@@ -126,15 +148,15 @@
 				body: JSON.stringify({ category: contactCategory, content: contactContent, contact: contactInfo })
 			});
 			if (res.ok) {
-				alert('소중한 의견 감사합니다! 🙇‍♂️');
+				showToast('소중한 의견 감사합니다! 🙇‍♂️'); // 🔥 alert -> showToast
 				isContactModalOpen = false;
 				contactContent = '';
 				contactInfo = '';
 			} else {
-				alert('전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+				showToast('전송에 실패했습니다. 잠시 후 다시 시도해주세요. 😢'); // 🔥 alert -> showToast
 			}
 		} catch (e) {
-			alert('오류가 발생했습니다.');
+			showToast('오류가 발생했습니다. 🚨'); // 🔥 alert -> showToast
 		} finally {
 			isSending = false;
 		}
@@ -160,11 +182,18 @@
 	</div>
 {/snippet}
 
+{#if toastMessage}
+	<div class="fixed top-20 left-1/2 -translate-x-1/2 bg-[#9e1b34]/95 backdrop-blur-sm text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold z-[10000] flex items-center gap-2 whitespace-nowrap" 
+		 transition:fly={{ y: -20, duration: 300 }}>
+		{toastMessage}
+	</div>
+{/if}
+
 <div class="flex flex-col items-center w-full min-h-screen bg-white max-w-md mx-auto relative shadow-sm">
 	
 	<header class="sticky top-0 z-20 w-full bg-white/90 backdrop-blur-sm border-b border-gray-50 px-4 py-3 flex justify-end items-center">
 		<button 
-			onclick={() => isContactModalOpen = true}
+			onclick={handleContactClick}
 			class="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-full hover:bg-gray-100 active:scale-95"
 			aria-label="문의하기"
 		>

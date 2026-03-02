@@ -2,7 +2,8 @@
 import type { PageServerLoad } from './$types';
 import { getCafeteriaMenu } from '$lib/server/scraper';
 
-export const load: PageServerLoad = async ({ setHeaders }) => {
+// 🔥 파라미터에 locals를 추가했습니다.
+export const load: PageServerLoad = async ({ setHeaders, locals }) => {
     // 🔥 캐싱 설정: 이 페이지의 데이터를 2시간 동안 기억합니다.
     setHeaders({
         'Cache-Control': 'public, max-age=7200'
@@ -60,6 +61,7 @@ export const load: PageServerLoad = async ({ setHeaders }) => {
     return {
         maincategory,
         todayMenu,
-        restaurants: []
+        restaurants: [],
+        user: locals.user // 🔥 [추가] hooks.server.ts에서 담은 유저 정보를 프론트로 넘김!
     };
 };
