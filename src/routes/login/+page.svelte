@@ -2,8 +2,9 @@
     import { MessageCircle } from 'lucide-svelte';
     let { data } = $props();
     
-    // 카카오 로그인 공식 URL 생성
-    const kakaoLoginUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${data.kakaoClientId}&redirect_uri=${data.redirectUri}&response_type=code`;
+    // 🔥 서버에서 완성해서 넘겨준 URL을 그대로 받아서 사용합니다!
+    // (더 이상 프론트엔드에 카카오 클라이언트 ID가 노출되지 않음)
+    const kakaoLoginUrl = data.kakaoAuthUrl;
 </script>
 
 <div class="min-h-screen flex flex-col items-center justify-center bg-white p-6 pb-24">

@@ -1,10 +1,12 @@
-import { env } from '$env/dynamic/private'; // 🔥 dynamic으로 변경!
+// src/routes/login/+page.server.ts
+import { env } from '$env/dynamic/private'; 
 
 export const load = async () => {
-    // .env에 있는 비밀 키를 화면(프론트)에서 쓸 수 있게 넘겨줍니다.
+    // 🔥 [보안 패치] ID와 URI를 따로 넘기지 않고, 완성된 URL로 만들어서 넘김
+    // 클라이언트는 data.kakaoAuthUrl 로 바로 접속하면 됩니다.
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${env.AUTH_KAKAO_ID}&redirect_uri=${env.AUTH_URL}/auth/callback/kakao&response_type=code`;
+    
     return {
-        kakaoClientId: env.AUTH_KAKAO_ID, // 🔥 env 보따리에서 꺼내기
-        // 배포 후에도 작동하도록 AUTH_URL(도메인)을 활용
-        redirectUri: `${env.AUTH_URL}/auth/callback/kakao` // 🔥 env 보따리에서 꺼내기
+        kakaoAuthUrl
     };
 };

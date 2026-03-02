@@ -40,13 +40,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         myLikedPostIds = new Set(myLikes.map(l => l.postId));
     }
 
-    const postsWithStatus = posts.map(post => ({
-        ...post,
-        isLiked: myLikedPostIds.has(post.id),
-        isMine: post.userId === currentUserId
-    }));
+// 🔥 [보안 패치] 민감한 userId를 제거하고 isLiked, isMine 상태만 넘김
+    const postsWithStatus = posts.map(post => {
+        const { userId, ...safePost } = post; // userId를 객체에서 분리 (노출 방지)
+        return {
+            ...safePost,
+            isLiked: myLikedPostIds.has(post.id),
+            isMine: post.userId === currentUserId
+        };
+    });
 
-    return { posts: postsWithStatus, user: currentUser };
+    // 🔥 [보안 패치] 현재 유저의 전체 정보(비밀번호 해시, 전화번호 등) 노출 방지
+    const safeUser = currentUser ? { 
+        id: currentUser.id, 
+        nickname: currentUser.nickname, 
+        role: currentUser.role 
+    } : null;
+
+    return { posts: postsWithStatus, user: safeUser };
 };
 
 export const actions: Actions = {
