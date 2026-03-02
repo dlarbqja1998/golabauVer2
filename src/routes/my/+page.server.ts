@@ -1,12 +1,15 @@
+// src/routes/my/+page.server.ts
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { users, golabassyuPosts } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
-// 🔥 수정됨: dynamic 대신 static으로 불러와야 오류가 안 납니다!
 import { env } from '$env/dynamic/private';
 
-// 1. 데이터 불러오기 (기존 동일)
+// 🔥 [보안] 메모리에 IP별 관리자 로그인 실패 기록 저장
+const loginAttempts = new Map();
+
+// 1. 데이터 불러오기
 export const load: PageServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('session_id');
 
@@ -33,7 +36,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     return { user: userInfo, myPosts };
 };
 
-// 2. 액션 (🔥 하나의 actions 객체 안에 모두 넣어야 합니다!)
+// 2. 액션
 export const actions: Actions = {
     logout: async ({ cookies }) => {
         cookies.delete('session_id', { path: '/' });
@@ -46,24 +49,21 @@ export const actions: Actions = {
 
         const data = await request.formData();
         
-        // 폼 데이터 가져오기
         const nickname = data.get('nickname')?.toString().trim();
-        const college = data.get('college')?.toString();      // [추가] 단과대
+        const college = data.get('college')?.toString();      // 단과대
         const department = data.get('department')?.toString(); // 학과
         const grade = data.get('grade')?.toString();
 
-        // 유효성 검사
         if (!nickname || nickname.length < 2 || nickname.length > 10) {
             console.log(`[보안] 마이페이지 닉네임 길이 조작 시도: ${nickname?.length || 0}자`);
             return fail(400, { message: '닉네임은 2글자 이상, 10글자 이하로 입력해주세요.' });
         }
 
         try {
-            // DB 업데이트 (단과대 포함)
             await db.update(users)
                 .set({
                     nickname,
-                    college,    // [추가] 단과대도 같이 수정됨!
+                    college,    
                     department,
                     grade
                 })
@@ -77,20 +77,60 @@ export const actions: Actions = {
         }
     },
 
-    // 🔥 기존 actions 안에 becomeAdmin을 추가했습니다! (request, locals 타입 에러도 해결됨)
-    becomeAdmin: async ({ request, locals }) => {
+    // 🔥 브루트포스 방어 로직이 완벽하게 적용된 관리자 권한 획득 액션
+    becomeAdmin: async ({ request, locals, getClientAddress }) => {
         const sessionUser = locals.user;
         if (!sessionUser) return fail(401, { message: '로그인이 필요합니다.' });
+
+        // 🛡️ 1. 무조건 1초 지연 (매크로/브루트포싱 속도 저하)
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const ip = getClientAddress();
+        const now = Date.now();
+        
+        // IP 기록 가져오기 (처음이면 초기화)
+        if (!loginAttempts.has(ip)) {
+            loginAttempts.set(ip, { currentFails: 0, totalFails: 0, lockedUntil: 0 });
+        }
+        const attempt = loginAttempts.get(ip);
+
+        // 🛡️ 2. 총 15회 이상 틀렸는지 체크 (영구 차단)
+        if (attempt.totalFails >= 15) {
+            return fail(403, { message: '🚨 지속적인 접근 시도로 인해 해당 IP는 영구 차단되었습니다.' });
+        }
+
+        // 🛡️ 3. 5회 연속 실패로 인한 15분 쿨타임 체크
+        if (attempt.lockedUntil > now) {
+            const remainMin = Math.ceil((attempt.lockedUntil - now) / 1000 / 60);
+            return fail(429, { message: `⏳ 시도 횟수 초과! ${remainMin}분 후에 다시 시도해주세요.` });
+        }
 
         const data = await request.formData();
         const secretCode = data.get('secretCode')?.toString();
 
-        // 1. 비밀번호 일치 확인
+        // 🛡️ 4. 비밀번호 검증 (.env 파일에 ADMIN_SECRET_KEY 확인)
         if (secretCode !== env.ADMIN_SECRET_KEY) {
-            return fail(400, { message: '비밀코드가 틀렸습니다.' });
+            attempt.currentFails += 1;
+            attempt.totalFails += 1;
+
+            // 방금 틀려서 연속 5회가 된 경우 -> 15분 락 걸기
+            if (attempt.currentFails >= 5) {
+                attempt.lockedUntil = now + 15 * 60 * 1000; // 15분 후
+                attempt.currentFails = 0; // 쿨타임 걸렸으니 연속 카운트는 초기화 (누적 횟수는 유지)
+                return fail(429, { 
+                    message: `❌ 5회 연속 실패! 15분 동안 인증이 차단됩니다. (총 ${attempt.totalFails}회/15회 실패)` 
+                });
+            }
+
+            // 일반적인 오답 (누적 15회가 되면 다음 시도부터 403 영구차단)
+            return fail(400, { 
+                message: `❌ 비밀코드가 틀렸습니다. (${attempt.totalFails}회/15회 실패 시 영구 차단됩니다)` 
+            });
         }
 
-        // 2. 일치하면 DB에서 해당 유저의 role을 'admin'으로 변경
+        // 🛡️ 5. 인증 성공! (IP 기록 깔끔하게 지워줌)
+        loginAttempts.delete(ip);
+
         try {
             await db.update(users)
                 .set({ role: 'admin' })
