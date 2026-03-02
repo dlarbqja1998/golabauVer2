@@ -1,25 +1,34 @@
+// src/hooks.server.ts
 import type { Handle } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { users } from './db/schema';
 import { eq } from 'drizzle-orm';
 
 export const handle: Handle = async ({ event, resolve }) => {
-    // 1. 쿠키에서 세션 ID 가져오기
-    const sessionId = event.cookies.get('session_id');
+    const path = event.url.pathname;
 
-    if (!sessionId) {
-        // 로그인 안 했으면 그냥 통과
+    // 🛑 [비용 폭탄 방지 1단계] 정적 자원, 내부 스크립트 등은 DB 조회 절대 금지!
+    // path에 '.'이 포함되어 있거나(이미지, 폰트 등), /_app/ 경로면 쿠키가 있든 없든 바로 통과시킵니다.
+    // 이 두 줄이 Neon DB 서브리퀘스트 100만 회를 막아주는 핵심 방패입니다.
+    if (path.startsWith('/_app') || path.includes('.')) {
         return await resolve(event);
     }
 
-    // 2. DB에서 유저 찾기
+    // 1. 쿠키에서 세션 ID 가져오기
+    const sessionId = event.cookies.get('session_id');
+
+    // 로그인 안 했으면 그냥 통과
+    if (!sessionId) {
+        return await resolve(event);
+    }
+
+    // 🛑 [비용 폭탄 방지 2단계] 진짜 페이지(HTML)나 API를 요청할 때만 DB에 1번만 접근!
     const user = await db.query.users.findFirst({
         where: eq(users.id, parseInt(sessionId))
     });
 
     // 3. 유저가 있으면 event.locals에 저장
     if (user) {
-        // [추가] 만약 밴 당한 유저라면 모든 접근 차단 (로그아웃 처리 등 응용 가능)
         if (user.isBanned) {
             return new Response('차단된 사용자입니다.', { status: 403 });
         }
@@ -30,20 +39,15 @@ export const handle: Handle = async ({ event, resolve }) => {
             email: user.email,
             profileImg: user.profileImg,
             badge: user.badge,
-            isOnboarded: user.isOnboarded, // 🔥 [핵심 1] 온보딩 했는지 안 했는지 정보 추가!
-            role: user.role // 🔥 [추가] 권한 정보 세션에 저장!
+            isOnboarded: user.isOnboarded,
+            role: user.role 
         };
 
-        // 🔥 [핵심 2] 온보딩 도망자 강제 납치 로직
-        const path = event.url.pathname;
-
-        // 예외 처리: 회원가입 페이지, 카카오 인증, 로그인, 정적 파일(이미지 등)은 무한 루프 방지를 위해 통과시킴
+        // 온보딩 도망자 강제 납치 예외 경로
         const isAllowedPath = 
             path === '/register' || 
             path.startsWith('/auth') || 
-            path === '/login' || 
-            path.startsWith('/_app') || 
-            path.includes('.'); 
+            path === '/login'; 
 
         // 온보딩 안 한 놈이 허락되지 않은 페이지를 어슬렁거린다?! -> 바로 납치!
         if (!user.isOnboarded && !isAllowedPath) {
