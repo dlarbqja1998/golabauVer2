@@ -307,16 +307,18 @@
 	</div>
 
 	<div class="w-full px-4 mb-8">
-		<button 
-			onclick={() => isBusModalOpen = true}
-			class="w-full bg-white border border-gray-100 rounded-xl p-5 shadow-sm active:scale-[0.98] transition-transform text-left group"
+		<a 
+			href="https://fund.korea.ac.kr/koreaSejong/7803/subview.do"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="block w-full bg-white border border-gray-100 rounded-xl p-5 shadow-sm active:scale-[0.98] transition-transform text-left group"
 		>
 			<div class="flex justify-between items-center mb-4">
 				<h2 class="font-bold text-lg text-gray-800 flex items-center gap-2 font-['Jua']">
 					🚌 셔틀버스 시간
 					<span class="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-sans animate-pulse">LIVE</span>
 				</h2>
-				<span class="text-xs text-gray-400 group-hover:text-blue-500 transition-colors">시간표 보기 ></span>
+				<span class="text-xs text-gray-400 group-hover:text-blue-500 transition-colors">공식 시간표 보기 ></span>
 			</div>
 
 			<div class="space-y-4 font-['Noto_Sans_KR']">
@@ -345,7 +347,7 @@
 					<span class="text-xl font-bold text-red-500 tabular-nums tracking-tight">{nextToSchool}</span>
 				</div>
 			</div>
-		</button>
+		</a>
 	</div>
 
 	{#if categories.length > 0}
@@ -363,18 +365,6 @@
 	{:else}
 		<div class="py-10 text-center text-gray-400 font-['Noto_Sans_KR']">
 			데이터를 불러오는 중...
-		</div>
-	{/if}
-
-	{#if isBusModalOpen}
-		<div class="fixed inset-0 bg-black/90 z-[9999] flex flex-col items-center justify-center" onclick={() => isBusModalOpen = false}>
-			<button class="absolute top-6 right-6 text-white p-2 bg-gray-800/50 rounded-full z-[10000] hover:bg-gray-700 transition-colors" onclick={() => isBusModalOpen = false}>
-				<X size={28} />
-			</button>
-			<p class="absolute top-8 left-6 text-white/70 text-sm font-medium z-50 pointer-events-none">👆 이미지를 확대하거나 스크롤하세요</p>
-			<div class="w-full h-full overflow-auto flex items-center justify-center p-4" onclick={(e) => e.stopPropagation()}>
-				<img src="/bus-schedule.jpg" alt="버스 시간표" class="max-w-none w-full md:w-auto md:max-w-3xl rounded-lg shadow-2xl" />
-			</div>
 		</div>
 	{/if}
 
