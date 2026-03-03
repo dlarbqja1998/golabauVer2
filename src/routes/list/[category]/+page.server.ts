@@ -1,9 +1,17 @@
+// src/routes/list/[category]/+page.server.ts
 import { db } from '$lib/server/db';
 import { restaurants, keywordReviews, ratings } from '../../../db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm'; 
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, url }) => {
+// 🔥 [수정됨] 매개변수에 setHeaders를 추가로 받아옵니다.
+export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
+    
+    // 🔥 [핵심 방어막] Cloudflare Edge 서버에 5초간 캐시, 만료 후 10초 동안은 백그라운드에서 갱신
+    setHeaders({
+        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=10'
+    });
+
     const category = params.category;
     const page = Number(url.searchParams.get('page')) || 1;
     const sort = url.searchParams.get('sort') || 'rating';
@@ -25,7 +33,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
         const totalCount = Number(totalCountRes[0]?.count || 0);
         const totalPages = Math.ceil(totalCount / limit);
 
-        // 🔥 [수정됨] 리뷰순 정렬 시에도 '다녀왔슈(golabassyu_posts)' 개수를 기준으로 정렬!
+        // 정렬 로직 (기존과 동일)
         let orderByClause;
         if (sort === 'rating') {
             orderByClause = [desc(restaurants.rating)];
@@ -43,7 +51,6 @@ export const load: PageServerLoad = async ({ params, url }) => {
             rating: restaurants.rating,
             zone: restaurants.zone, 
             keywordReviewCount: sql<number>`(SELECT count(*) FROM keyword_reviews WHERE restaurant_id = restaurants.id)`.mapWith(Number),
-            // 🔥 [수정됨] 별점 개수가 아니라 진짜 '다녀왔슈' 게시글 개수를 가져오게 수정!
             postCount: sql<number>`(SELECT count(*) FROM golabassyu_posts WHERE restaurant_id = restaurants.id)`.mapWith(Number),
         })
         .from(restaurants)
