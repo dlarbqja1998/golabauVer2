@@ -11,17 +11,15 @@ export const handle: Handle = async ({ event, resolve }) => {
     // =======================================================
     // 🛑 [무료 방화벽 1단계] 악성 스캐너 봇 즉시 처단 (연산량 0)
     // =======================================================
-    // 전 세계 해커 봇들이 찔러보는 대표적인 취약점 주소들입니다.
     const badPaths = ['.php', '.env', '.git', '/wp-admin', '/wp-login', '/admin.php', '/config'];
     if (badPaths.some(bp => path.includes(bp))) {
         console.log(`[방화벽] 스캐너 봇 차단: ${path}`);
-        return new Response('Go away 🖕', { status: 403 }); // 403 에러 던지고 바로 연결 끊어버림
+        return new Response('Go away 🖕', { status: 403 });
     }
 
     // =======================================================
     // 🛑 [무료 방화벽 2단계] 비정상적인 브라우저(터미널 봇) 차단
     // =======================================================
-    // 사람이 아닌 코드로 긁어가는 파이썬, curl, wget 봇들을 차단합니다.
     const badAgents = ['curl', 'wget', 'python', 'postman', 'httpclient'];
     if (!userAgent || badAgents.some(ba => userAgent.includes(ba))) {
         console.log(`[방화벽] 비정상 User-Agent 차단: ${userAgent}`);
@@ -29,13 +27,37 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     // =======================================================
-    // 🛑 [비용 폭탄 방지] 정적 파일은 DB 조회 금지 (이전에 추가한 것)
+    // 🛑 [비용 폭탄 방지] 정적 파일은 DB 조회 금지
     // =======================================================
     if (path.startsWith('/_app') || path.includes('.')) {
         return await resolve(event);
     }
 
-    // --- (이하 기존 정상 유저 로그인 체크 로직 동일) ---
+    // =======================================================
+    // 🔥 [핵심 방어막] 꼭 필요한 페이지에서만 DB 찌르기!!!
+    // =======================================================
+    // 라우터 폴더명 기준입니다. 만약 다녀왔슈 게시판 주소가 /board 라면 /golabassyu 대신 /board를 넣으세요!
+    const protectedPaths = [
+        '/mypage', 
+        '/write', 
+        '/auth', 
+        '/api',         // 문의하기, 좋아요, 댓글 작성 등 모든 백엔드 액션 허용
+        '/restaurant',  // 식당 상세페이지 (별점, 키워드 리뷰 허용)
+        '/golabassyu'   // 🔥 다녀왔슈 커뮤니티 (좋아요, 댓글 허용)
+    ]; 
+    
+    // 현재 접속한 주소가 위 배열에 포함되어 있는지 확인
+    const isProtectedPath = protectedPaths.some(p => path.startsWith(p));
+
+    // 보호된 주소가 아니라면 (예: 메인화면 '/', 식당리스트 '/list/한식')
+    // DB 찌르지 말고 바로 렌더링해서 보내버림 (DB 요금 0원!)
+    if (!isProtectedPath) {
+        return await resolve(event); 
+    }
+
+    // =======================================================
+    // 👇 이하 로그인 유저 확인 로직 (보호된 경로에서만 실행됨!)
+    // =======================================================
     const sessionId = event.cookies.get('session_id');
 
     if (!sessionId) {

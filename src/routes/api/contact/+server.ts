@@ -2,7 +2,16 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private'; // 🔥 여기 수정! env 보따리를 통째로 가져옴!
 
-export const POST: RequestHandler = async ({ request }) => {
+// 🔥 1. 매개변수에 locals 추가!
+export const POST: RequestHandler = async ({ request, locals }) => {
+    
+    // =======================================================
+    // 🚨 2. [핵심 방어막] 로그인 안 한 유저면 여기서 컷! (401 에러 반환)
+    // =======================================================
+    if (!locals.user) {
+        return new Response('로그인이 필요합니다.', { status: 401 });
+    }
+
     try {
         const { category, content, contact } = await request.json();
 

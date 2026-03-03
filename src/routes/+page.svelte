@@ -129,16 +129,13 @@
 
 	// 🔥 로그인 체크 핸들러 추가
 	function handleContactClick() {
-		if (!user) {
-			showToast('로그인 후 이용할 수 있어요! 🔒');
-			return;
-		}
+		// 쿠키가 있다면 일단 문의하기 모달을 열어줌
 		isContactModalOpen = true;
 	}
 
 	async function sendInquiry() {
 		if (!contactContent.trim()) {
-			showToast('내용을 입력해주세요! ✍️'); // 🔥 alert -> showToast
+			showToast('내용을 입력해주세요! ✍️');
 			return;
 		}
 		isSending = true;
@@ -147,16 +144,24 @@
 				method: 'POST',
 				body: JSON.stringify({ category: contactCategory, content: contactContent, contact: contactInfo })
 			});
+
+			// 🚨 백엔드에서 "너 로그인 안 했잖아" (401 또는 403 에러) 하고 튕겨냈을 때
+			if (res.status === 401 || res.status === 403) {
+				showToast('로그인 후 이용할 수 있어요! 🔒');
+				isContactModalOpen = false; // 얌체 비회원이면 모달 바로 닫아버림
+				return;
+			}
+
 			if (res.ok) {
-				showToast('소중한 의견 감사합니다! 🙇‍♂️'); // 🔥 alert -> showToast
+				showToast('소중한 의견 감사합니다! 🙇‍♂️'); 
 				isContactModalOpen = false;
 				contactContent = '';
 				contactInfo = '';
 			} else {
-				showToast('전송에 실패했습니다. 잠시 후 다시 시도해주세요. 😢'); // 🔥 alert -> showToast
+				showToast('전송에 실패했습니다. 잠시 후 다시 시도해주세요. 😢'); 
 			}
 		} catch (e) {
-			showToast('오류가 발생했습니다. 🚨'); // 🔥 alert -> showToast
+			showToast('오류가 발생했습니다. 🚨'); 
 		} finally {
 			isSending = false;
 		}
