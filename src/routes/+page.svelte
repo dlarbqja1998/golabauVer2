@@ -201,11 +201,11 @@
 			{#if todayMenu}
 				{#if !isMenuExpanded}
 					<button 
-						class="w-full flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors py-4"
+						class="w-full flex flex-col items-center justify-center cursor-pointer bg-red-50/50 hover:bg-red-50 transition-colors py-3 group"
 						onclick={() => isMenuExpanded = true}
 					>
-						<div class="text-gray-300 hover:text-gray-500 transition-colors">
-							<ChevronDown size={24} />
+						<div class="text-[#8B0029] transition-transform group-hover:scale-110 group-active:scale-95">
+							<ChevronDown size={24} strokeWidth={2.5} />
 						</div>
 					</button>
 				{/if}
@@ -266,10 +266,10 @@
 						</div>
 						
 						<button 
-							class="w-full py-2 bg-gray-50 flex justify-center items-center text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors border-t border-gray-100"
+							class="w-full py-2 bg-red-50/50 flex justify-center items-center text-[#8B0029] hover:bg-red-50 transition-all border-t border-red-100 group"
 							onclick={() => isMenuExpanded = false}
 						>
-							<ChevronUp size={24} />
+							<ChevronUp size={24} strokeWidth={2.5} class="transition-transform group-hover:scale-110 group-active:scale-95" />
 						</button>
 					</div>
 				{/if}
