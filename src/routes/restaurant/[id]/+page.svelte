@@ -431,7 +431,7 @@
 							<button type="button" onclick={() => openReviewModal(review)} class="w-full text-left bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex gap-3 hover:shadow-md transition-shadow cursor-pointer">
 								
 								{#if thumbnail}
-									<img src={thumbnail} alt="리뷰 썸네일" class="w-20 h-20 rounded-lg object-cover shrink-0 border border-gray-50" />
+									<img src={thumbnail} alt="리뷰 썸네일" class="w-20 h-20 rounded-lg object-contain bg-gray-100 shrink-0 border border-gray-50" />
 								{:else}
 									<div class="w-20 h-20 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
 										<MessageCircle size={24} class="text-gray-300" />
@@ -495,7 +495,7 @@
 						<div class="w-full aspect-square bg-gray-100 relative snap-x snap-mandatory overflow-x-auto flex no-scrollbar">
 							{#each images as img, i}
 								<div class="w-full h-full shrink-0 snap-center relative">
-									<img src={img} alt="food" class="w-full h-full object-cover" />
+									<img src={img} alt="food" class="w-full h-full object-contain" />
 									{#if images.length > 1}
 										<div class="absolute top-4 right-14 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-bold z-10">
 											{i + 1} / {images.length}

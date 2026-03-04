@@ -183,8 +183,8 @@
         {#if uploadedUrls.length > 0}
             <div class="flex overflow-x-auto p-4 gap-3 no-scrollbar snap-x">
                 {#each uploadedUrls as url, i}
-                    <div class="relative min-w-[200px] h-[200px] snap-center shrink-0">
-                        <img src={url} alt="preview" class="w-full h-full object-cover rounded-lg shadow-sm" />
+                    <div class="relative min-w-[200px] h-[200px] snap-center shrink-0 bg-gray-100 rounded-lg">
+                        <img src={url} alt="preview" class="w-full h-full object-contain rounded-lg shadow-sm" />
                         <button type="button" onclick={() => removeImage(i)} class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500">
                             <X size={16} />
                         </button>

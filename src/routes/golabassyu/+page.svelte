@@ -313,11 +313,11 @@
                     </div>
 
                     {#if images.length > 0}
-                        <div class="w-full aspect-square bg-gray-100 relative group">
+                        <div class="w-full aspect-square bg-gray-100 relative group border-y border-gray-100">
                             <div class="flex overflow-x-auto w-full h-full snap-x snap-mandatory no-scrollbar">
                                 {#each images as img, i}
                                     <div class="w-full h-full shrink-0 snap-center relative">
-                                        <img src={img} alt="food" class="w-full h-full object-cover" />
+                                        <img src={img} alt="food" class="w-full h-full object-contain" />
                                         
                                         {#if images.length > 1}
                                             <div class="absolute top-3 right-3 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
