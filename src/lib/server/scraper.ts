@@ -1,9 +1,10 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // 인증서 무시 
 import { load } from 'cheerio';
 
-// 🔥 타입스크립트에게 데이터 모양을 미리 알려줍니다 (빨간줄 해결 핵심!)
+// 🔥 조식(breakfast) 타입 추가!
 interface MenuResult {
     student: {
+        breakfast: string[];
         korean: string[];
         special: string[];
         snack: string[];
@@ -35,9 +36,9 @@ export async function getCafeteriaMenu() {
         const html = await response.text();
         const $ = load(html);
 
-        // 🔥 위에서 만든 MenuResult 타입을 적용해서 빨간 줄을 없앱니다!
         const result: MenuResult = {
             student: {
+                breakfast: [], // 🔥 조식 초기화
                 korean: [],
                 special: [],
                 snack: [],
@@ -74,12 +75,10 @@ export async function getCafeteriaMenu() {
             // tbody의 각 줄(tr)을 돌면서 메뉴 추출
             $(menuDiv).find('table tbody tr').each((_, tr) => {
                 const th = $(tr).find('th');
-                // th가 있는 줄이면 메뉴 분류(중식-한식 등) 이름 업데이트
                 if (th.length > 0) {
                     currentRowTitle = th.text().trim();
                 }
 
-                // td들만 추출 (첫번째칸이 th이므로, 실제 td 인덱스는 1을 빼주어야 함)
                 const tds = $(tr).find('td');
                 const targetTd = tds.eq(todayColumnIndex - 1);
                 
@@ -99,16 +98,21 @@ export async function getCafeteriaMenu() {
                     .replace(/<[^>]+>/g, '')
                     .replace(/"/g, '')
                     .split('\n')
-                    .map(item => item.trim())
+                    .map(item => {
+                        // 🔥 [알러지 제거 로직] (1, 2, 3...) 형태의 괄호를 깔끔하게 지워줌!
+                        return item.replace(/\s*\([\d,\.\s]+\)/g, '').trim();
+                    })
                     .filter(item => item.length > 0);
 
                 if (menuArray.length > 0) {
                     foundMenu = true;
-                    // 추출한 배열을 카테고리에 맞게 쏙쏙 넣어주기 (빨간 줄 해결됨!)
                     if (isFaculty && currentRowTitle.includes('중식')) {
                         result.faculty.lunch.push(...menuArray);
                     } else if (isStudent) {
-                        if (currentRowTitle.includes('한식')) {
+                        // 🔥 조식 및 기타 식단 추가
+                        if (currentRowTitle.includes('조식')) {
+                            result.student.breakfast.push(...menuArray);
+                        } else if (currentRowTitle.includes('한식')) {
                             result.student.korean.push(...menuArray);
                         } else if (currentRowTitle.includes('일품')) {
                             result.student.special.push(...menuArray);

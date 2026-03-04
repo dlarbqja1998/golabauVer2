@@ -3,12 +3,12 @@
 	import { getTodaySchedule } from '$lib/data/busSchedule'; 
 	import { onMount } from 'svelte';
 	import { X, Mail, Send, ChevronDown, ChevronUp } from 'lucide-svelte';
-	import { slide, fly } from 'svelte/transition'; // 🔥 fly 애니메이션 추가
+	import { slide, fly } from 'svelte/transition';
 
 	let { data } = $props();
 	
 	let categories = $derived(data?.maincategory || []);
-	let user = $derived(data?.user); // 🔥 +page.server.ts에서 넘어온 로그인 유저 정보
+	let user = $derived(data?.user);
 
 	// ▼▼▼ [토스트 알림 로직] ▼▼▼
 	let toastMessage = $state('');
@@ -19,36 +19,13 @@
 		if (toastTimeout) clearTimeout(toastTimeout);
 		toastTimeout = setTimeout(() => {
 			toastMessage = '';
-		}, 2500); // 2.5초 후 사라짐
+		}, 2500); 
 	}
 
 	// ▼▼▼ [학식 로직] ▼▼▼
 	let todayMenu = $derived(data?.todayMenu);
 	let activeTab = $state('student');
 	let isMenuExpanded = $state(false);
-
-	// 🔥 미니멀한 메뉴 미리보기 텍스트
-	let simpleTeaser = $derived.by(() => {
-		if (!todayMenu) return "";
-		
-		const koreanItems = todayMenu.student?.korean || [];
-		const specialItems = todayMenu.student?.special || [];
-		const allLunchItems = [...koreanItems, ...specialItems];
-
-		// 밥, 김치류 제외하고 메인 반찬만 깔끔하게 추출
-		const tastyItems = allLunchItems.filter(item => 
-			!item.includes('밥') && 
-			!item.includes('김치') && 
-			!item.includes('단무지') &&
-			!item.includes('깍두기')
-		);
-
-		// 반찬 정보가 없으면 아예 빈 칸 반환 (중복 멘트 제거)
-		if (tastyItems.length === 0) return "";
-		
-		// 쉼표로 심플하게 나열하고 끝에 ... 붙이기
-		return tastyItems.slice(0, 3).join(', ') + (tastyItems.length > 3 ? '...' : '');
-	});
 
 	function formatDate(dateStr) {
 		if (!dateStr) return '';
@@ -116,7 +93,6 @@
 
 	const contactCategories = ['맛집 추가', '정보 수정', '기능 제안', '버그 신고', '기타'];
 
-	// 🔥 [추가] 모달이 열려있을 때 뒷배경 스크롤 완벽 차단 로직
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			if (isContactModalOpen || isBusModalOpen) {
@@ -127,9 +103,7 @@
 		}
 	});
 
-	// 🔥 로그인 체크 핸들러 추가
 	function handleContactClick() {
-		// 쿠키가 있다면 일단 문의하기 모달을 열어줌
 		isContactModalOpen = true;
 	}
 
@@ -145,10 +119,9 @@
 				body: JSON.stringify({ category: contactCategory, content: contactContent, contact: contactInfo })
 			});
 
-			// 🚨 백엔드에서 "너 로그인 안 했잖아" (401 또는 403 에러) 하고 튕겨냈을 때
 			if (res.status === 401 || res.status === 403) {
 				showToast('로그인 후 이용할 수 있어요! 🔒');
-				isContactModalOpen = false; // 얌체 비회원이면 모달 바로 닫아버림
+				isContactModalOpen = false;
 				return;
 			}
 
@@ -231,11 +204,6 @@
 						class="w-full flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors py-4"
 						onclick={() => isMenuExpanded = true}
 					>
-						{#if simpleTeaser}
-							<p class="text-base text-gray-800 font-medium font-['Noto_Sans_KR'] px-4 text-center mb-2">
-								{simpleTeaser}
-							</p>
-						{/if}
 						<div class="text-gray-300 hover:text-gray-500 transition-colors">
 							<ChevronDown size={24} />
 						</div>
@@ -269,6 +237,11 @@
 							{#if activeTab === 'student'}
 								<div class="space-y-3 animate-fade-in">
 									<div class="flex items-center gap-2 mb-1">
+										<span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded">아침 (08:00~09:00)</span>
+									</div>
+									{@render MenuCard('🍳 조식', todayMenu.student.breakfast, 'bg-sky-50', 'text-sky-700')}
+
+									<div class="flex items-center gap-2 mt-4 mb-1">
 										<span class="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
 									</div>
 									<div class="grid grid-cols-1 gap-2">
@@ -276,6 +249,7 @@
 										{@render MenuCard('🍛 일품', todayMenu.student.special, 'bg-blue-50', 'text-blue-600')}
 										{@render MenuCard('🍜 분식', todayMenu.student.snack, 'bg-yellow-50', 'text-yellow-600')}
 									</div>
+									
 									<div class="flex items-center gap-2 mt-4 mb-1">
 										<span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
 									</div>
@@ -312,7 +286,7 @@
 	</div>
 
 	<div class="w-full px-4 mb-8">
-		<a 
+		<a 
 			href="https://fund.korea.ac.kr/koreaSejong/7803/subview.do"
 			target="_blank"
 			rel="noopener noreferrer"
