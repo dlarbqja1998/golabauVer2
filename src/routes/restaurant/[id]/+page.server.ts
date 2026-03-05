@@ -5,30 +5,64 @@ import { eq, sql, desc, and } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+// 🔥 KV 캐시 함수 임포트
+import { getKVCache, setKVCache, deleteKVCache } from '$lib/server/cache';
+
+export const load: PageServerLoad = async ({ params, locals, platform }) => {
     const restaurantId = Number(params.id);
     const user = locals.user;
     const currentUserId = user ? user.id : 0; 
+    const CACHE_KEY = `restaurant_detail_${restaurantId}`; // 식당마다 고유 캐시 키 생성!
 
     try {
-        const restaurantData = await db.select().from(restaurants).where(eq(restaurants.id, restaurantId)).limit(1);
-        
-        if (!restaurantData || restaurantData.length === 0) {
-            return { restaurant: null, topKeywords: [], myRating: null, myKeywords: [], reviews: [], user: null };
+        // 1️⃣ [캐시 읽기] 무거운 공통 데이터(식당 정보, 키워드, 리뷰 목록)를 KV에서 꺼내옴
+        let cachedData = await getKVCache<any>(platform, CACHE_KEY);
+
+        // 2️⃣ 캐시가 비어있다면 DB에서 긁어와서 KV에 저장!
+        if (!cachedData) {
+            const restaurantData = await db.select().from(restaurants).where(eq(restaurants.id, restaurantId)).limit(1);
+            
+            if (!restaurantData || restaurantData.length === 0) {
+                return { restaurant: null, topKeywords: [], myRating: null, myKeywords: [], reviews: [], user: null };
+            }
+
+            const topKeywords = await db
+                .select({ keyword: keywordReviews.keyword, count: sql<number>`count(*)` })
+                .from(keywordReviews)
+                .where(eq(keywordReviews.restaurantId, restaurantId))
+                .groupBy(keywordReviews.keyword)
+                .orderBy(desc(sql`count(*)`))
+                .limit(5);
+
+            const fetchedReviews = await db.select({
+                id: golabassyuPosts.id,
+                title: golabassyuPosts.title,
+                content: golabassyuPosts.content,
+                rating: golabassyuPosts.rating,
+                createdAt: golabassyuPosts.createdAt,
+                imageUrl: golabassyuPosts.imageUrl,
+                likes: golabassyuPosts.likes,
+                userId: golabassyuPosts.userId, 
+                commentCount: sql<number>`(
+                    SELECT count(*) FROM ${golabassyuComments} 
+                    WHERE ${golabassyuComments.postId} = ${golabassyuPosts.id}
+                )`.mapWith(Number) 
+            })
+            .from(golabassyuPosts)
+            .where(eq(golabassyuPosts.restaurantId, restaurantId))
+            .orderBy(desc(golabassyuPosts.createdAt));
+
+            // 데이터 묶어서 KV에 저장
+            cachedData = { safeRestaurant: restaurantData[0], topKeywords, fetchedReviews };
+            await setKVCache(platform, CACHE_KEY, cachedData);
         }
 
-        // 1. 전체 상위 5개 키워드 통계
-        const topKeywords = await db
-            .select({ keyword: keywordReviews.keyword, count: sql<number>`count(*)` })
-            .from(keywordReviews)
-            .where(eq(keywordReviews.restaurantId, restaurantId))
-            .groupBy(keywordReviews.keyword)
-            .orderBy(desc(sql`count(*)`))
-            .limit(5);
+        const { safeRestaurant, topKeywords, fetchedReviews } = cachedData;
 
-        // 2. 내 별점 및 키워드 데이터
+        // 3️⃣ [개인화 처리] 로그인한 유저의 "내 별점", "내 키워드", "내 좋아요" 정보만 DB에서 잽싸게 가져옴
         let myRating = null;
         let myKeywords: string[] = [];
+        let myLikedPostIds = new Set();
 
         if (user) {
             const ratingData = await db.select()
@@ -41,40 +75,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 .from(keywordReviews)
                 .where(and(eq(keywordReviews.restaurantId, restaurantId), eq(keywordReviews.userId, user.id)));
             myKeywords = keywordData.map(r => r.keyword);
-        }
 
-        // 3. 이 식당에 작성된 리뷰 가져오기 (댓글 수, 좋아요 수 포함)
-        const fetchedReviews = await db.select({
-            id: golabassyuPosts.id,
-            title: golabassyuPosts.title,
-            content: golabassyuPosts.content,
-            rating: golabassyuPosts.rating,
-            createdAt: golabassyuPosts.createdAt,
-            imageUrl: golabassyuPosts.imageUrl,
-            likes: golabassyuPosts.likes,
-            userId: golabassyuPosts.userId, // 내가 쓴 글인지 판별하기 위해 일단 가져옴
-            commentCount: sql<number>`(
-                SELECT count(*) FROM ${golabassyuComments} 
-                WHERE ${golabassyuComments.postId} = ${golabassyuPosts.id}
-            )`.mapWith(Number) 
-        })
-        .from(golabassyuPosts)
-        .where(eq(golabassyuPosts.restaurantId, restaurantId))
-        .orderBy(desc(golabassyuPosts.createdAt));
-
-        // [보안 패치] 내가 좋아요 누른 게시글 세팅
-        let myLikedPostIds = new Set();
-        if (currentUserId) {
             const myLikes = await db.select().from(postLikes).where(eq(postLikes.userId, currentUserId));
             myLikedPostIds = new Set(myLikes.map(l => l.postId));
         }
 
-        // 식당 정보는 프론트에 필요하므로 넘김
-        const safeRestaurant = restaurantData[0];
-
-        // [보안 패치] 리뷰 작성자의 userId는 차단하고, isLiked, isMine만 넘김
-        const reviews = fetchedReviews.map(rev => {
-            const { userId, ...safeRev } = rev; // 🚨 userId 노출 방지!
+        // 4️⃣ [보안] KV에서 꺼낸 리뷰 정보에 내 좋아요/내 글 여부 덮어씌우고 민감한 userId 날리기
+        const reviews = fetchedReviews.map((rev: any) => {
+            const { userId, ...safeRev } = rev; 
             return {
                 ...safeRev,
                 isLiked: myLikedPostIds.has(rev.id),
@@ -101,7 +109,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
     // ▼ 별점 등록 로직
-    submitRating: async ({ request, params, locals }) => {
+    submitRating: async ({ request, params, locals, platform }) => {
         if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
 
         const data = await request.formData();
@@ -117,9 +125,7 @@ export const actions: Actions = {
                 .limit(1);
 
             if (existingRating.length > 0) {
-                await db.update(ratings)
-                    .set({ rating })
-                    .where(eq(ratings.id, existingRating[0].id));
+                await db.update(ratings).set({ rating }).where(eq(ratings.id, existingRating[0].id));
             } else {
                 await db.insert(ratings).values({ restaurantId, userId, rating });
             }
@@ -130,15 +136,17 @@ export const actions: Actions = {
             
             await db.update(restaurants).set({ rating: newAvg }).where(eq(restaurants.id, restaurantId));
 
+            // 🔥 [캐시 폭파] 별점이 바뀌었으므로 이 식당 캐시 날림!
+            await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
+
             return { success: true };
         } catch (error) {
-            console.error('별점 저장 에러:', error);
             return fail(500);
         }
     },
 
     // ▼ 키워드 등록 로직
-    submitKeyword: async ({ request, params, locals }) => {
+    submitKeyword: async ({ request, params, locals, platform }) => {
         if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
 
         const data = await request.formData();
@@ -147,27 +155,30 @@ export const actions: Actions = {
         const userId = locals.user.id;
 
         try {
-            await db.delete(keywordReviews)
-                .where(and(eq(keywordReviews.restaurantId, restaurantId), eq(keywordReviews.userId, userId)));
+            await db.delete(keywordReviews).where(and(eq(keywordReviews.restaurantId, restaurantId), eq(keywordReviews.userId, userId)));
 
             if (keywords && keywords.length > 0) {
                 for (const k of keywords) {
                     await db.insert(keywordReviews).values({ restaurantId, userId, keyword: k });
                 }
             }
+
+            // 🔥 [캐시 폭파] 키워드 랭킹이 바뀌었으므로 이 식당 캐시 날림!
+            await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
+
             return { success: true };
         } catch (error) {
-            console.error('키워드 저장 에러:', error);
             return fail(500);
         }
     },
 
     // ▼ 댓글 삭제 로직
-    deleteComment: async ({ request, locals }) => {
+    deleteComment: async ({ request, locals, platform, params }) => {
         if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
         
         const data = await request.formData();
         const commentId = Number(data.get('commentId'));
+        const restaurantId = Number(params.id);
 
         if (!commentId) return fail(400, { message: '잘못된 요청입니다.' });
 
@@ -181,15 +192,21 @@ export const actions: Actions = {
         }
 
         await db.delete(golabassyuComments).where(eq(golabassyuComments.id, commentId));
+
+        // 🔥 [캐시 폭파] 리뷰의 댓글 수가 줄었으니 식당 상세 캐시와 골라밧슈 피드 캐시를 동시에 터뜨림!
+        await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
+        await deleteKVCache(platform, 'golabassyu_all_posts');
+
         return { success: true };
     },
 
     // ▼ 게시글(리뷰) 삭제 로직
-    deletePost: async ({ request, locals }) => {
+    deletePost: async ({ request, locals, platform, params }) => {
         if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
 
         const data = await request.formData();
         const postId = Number(data.get('postId'));
+        const restaurantId = Number(params.id);
 
         if (!postId) return fail(400, { message: '잘못된 요청입니다.' });
 
@@ -203,6 +220,10 @@ export const actions: Actions = {
         }
 
         await db.delete(golabassyuPosts).where(eq(golabassyuPosts.id, postId));
+
+        // 🔥 [캐시 폭파] 게시글이 지워졌으니 상세 캐시, 메인 피드 캐시 동시 폭파!
+        await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
+        await deleteKVCache(platform, 'golabassyu_all_posts');
 
         return { success: true };
     }

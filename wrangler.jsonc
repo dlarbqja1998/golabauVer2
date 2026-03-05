@@ -18,6 +18,11 @@
 			"binding": "golabassyu_images",
 			"remote": true
 		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "GOLABAU_CACHE",
+			"id": "692a6da28f784bf2bf0179a894fda042"
+		}
 	]
-	
 }

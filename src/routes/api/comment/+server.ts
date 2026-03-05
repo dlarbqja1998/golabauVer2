@@ -4,7 +4,10 @@ import { golabassyuComments, users } from '../../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import type { RequestEvent } from './$types';
 
-// 댓글 가져오기 (GET)
+// 🔥 캐시 삭제 함수 가져오기
+import { deleteKVCache } from '$lib/server/cache';
+
+// 댓글 가져오기 (GET) - 여긴 데이터 변경이 없으니 그대로 둠!
 export async function GET({ url }: RequestEvent) {
     const postId = Number(url.searchParams.get('postId'));
     
@@ -14,7 +17,6 @@ export async function GET({ url }: RequestEvent) {
         createdAt: golabassyuComments.createdAt,
         writerName: users.nickname,
         writerBadge: users.badge,
-        // 🔥 [추가] 프론트에서 본인 댓글인지 확인하기 위해 반드시 필요합니다!
         userId: golabassyuComments.userId 
     })
     .from(golabassyuComments)
@@ -26,7 +28,7 @@ export async function GET({ url }: RequestEvent) {
 }
 
 // 댓글 쓰기 (POST)
-export async function POST({ request, locals }: RequestEvent) {
+export async function POST({ request, locals, platform }: RequestEvent) {
     if (!locals.user) {
         return json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -39,6 +41,9 @@ export async function POST({ request, locals }: RequestEvent) {
         userId,
         content
     });
+
+    // 🔥 [캐시 폭파] 댓글 개수가 늘어났으므로 피드 캐시 삭제!
+    await deleteKVCache(platform, 'golabassyu_all_posts');
 
     return json({ success: true });
 }

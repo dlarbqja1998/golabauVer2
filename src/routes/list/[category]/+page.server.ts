@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
     
     // 🔥 [핵심 방어막] Cloudflare Edge 서버에 5초간 캐시, 만료 후 10초 동안은 백그라운드에서 갱신
     setHeaders({
-        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=10'
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=3600'
     });
 
     const category = params.category;
