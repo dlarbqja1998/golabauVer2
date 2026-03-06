@@ -10,26 +10,21 @@
 	// 🔥 [PostHog Who] 유저 명찰(Identify) 달아주기
 	// ==========================================
 	$effect(() => {
-		// 브라우저 환경이고 posthog이 제대로 로드되었을 때만 실행
+		console.log("PostHog 체크! 현재 유저 데이터:", data?.user);
 		if (typeof window !== 'undefined' && window.posthog) {
+			
 			if (data?.user) {
-				const user = data.user;
-				
-				// 1. 유저 고유 ID로 신분증 발급 + 상세 프로필 동시 등록!
-				// identify의 두 번째 인자로 프로필 객체를 넘기는 것이 공식 권장 방식입니다.
-				window.posthog.identify(user.id, {
-					name: user.nickname, // ⭐️ PostHog 대시보드 리스트에 보여질 대표 이름
-					nickname: user.nickname,
-					grade: user.grade,        
-					gender: user.gender,      
-					birth_year: user.birthYear,
-					college: user.college,    
-					department: user.department 
+				// 1. 보호된 경로(/mypage 등)에 들어가서 DB 유저 정보가 있을 때 식별!
+				window.posthog.identify(data.user.id, {
+					name: data.user.nickname, 
+					nickname: data.user.nickname
 				});
-			} else {
-				// 2. 로그아웃 시 기존 유저의 세션과 섞이지 않도록 익명(초기화) 처리
+			} else if (!data?.hasSession) {
+				// 2. ⭐️ 핵심 포인트: data.user가 없더라도 세션 쿠키가 있다면(홈 화면 등) 가만히 냅둠!
+				// 오직 세션 쿠키마저 없는 '진짜 로그아웃/비로그인' 상태일 때만 익명 처리
 				window.posthog.reset();
 			}
+
 		}
 	});
 </script>

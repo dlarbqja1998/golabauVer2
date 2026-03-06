@@ -38,7 +38,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // =======================================================
     // 라우터 폴더명 기준입니다. 만약 다녀왔슈 게시판 주소가 /board 라면 /golabassyu 대신 /board를 넣으세요!
     const protectedPaths = [
-        '/mypage', 
+        '/my', 
         '/write', 
         '/auth', 
         '/api',         // 문의하기, 좋아요, 댓글 작성 등 모든 백엔드 액션 허용
