@@ -1,26 +1,22 @@
 // src/routes/golabassyu/+page.server.ts
 import { db } from '$lib/server/db';
-import { golabassyuPosts, users, postLikes, golabassyuComments, ratings } from '../../db/schema';
-import { desc, eq, sql, and } from 'drizzle-orm';
+import { golabassyuPosts, users, postLikes, golabassyuComments } from '../../db/schema';
+import { desc, eq, sql } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-// 🔥 욕설 필터링 함수 (경로 맞춰서 넣어주세요)
 import { containsBadWord } from '$lib/server/badwords'; 
-
-// 🔥 아까 만든 KV 캐시 도우미 함수 불러오기
 import { getKVCache, setKVCache, deleteKVCache } from '$lib/server/cache';
 
 const CACHE_KEY = 'golabassyu_all_posts';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
     const currentUser = locals.user;
-    const currentUserId = currentUser ? currentUser.id : 0;
+    const currentUserId = currentUser?.id || 0;
 
-    // 1️⃣ [캐시 읽기] 공용 데이터(전체 게시글 + 댓글 수)를 KV 캐시에서 먼저 찾기!
+    // 1️⃣ [공용 데이터] 전체 게시글 + 댓글 수 캐시 조회 및 DB 폴백
     let posts = await getKVCache<any[]>(platform, CACHE_KEY);
 
-    // 2️⃣ 캐시가 비어있다면? (누가 글을 썼거나 캐시가 만료된 경우) DB에서 직접 조회 후 저장!
     if (!posts) {
         posts = await db.select({
             id: golabassyuPosts.id,
@@ -33,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
             area: golabassyuPosts.area,
             likes: golabassyuPosts.likes,
             createdAt: golabassyuPosts.createdAt,
-            userId: golabassyuPosts.userId, // 여기서 가져온 userId는 마지막에 무조건 삭제함!
+            userId: golabassyuPosts.userId, // 매핑 시 삭제될 예정
             writerName: users.nickname,
             writerBadge: users.badge,
             commentCount: sql<number>`(
@@ -45,28 +41,33 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
         .leftJoin(users, eq(golabassyuPosts.userId, users.id))
         .orderBy(desc(golabassyuPosts.id));
 
-        // 가져온 무거운 데이터를 KV 캐시에 저장 (다음 사람부터는 DB 조회 안 함)
         await setKVCache(platform, CACHE_KEY, posts);
     }
 
-    // 3️⃣ [개인화 처리] 로그인한 유저라면, 내가 좋아요 누른 글 목록만 DB에서 가볍게 가져옴
-    let myLikedPostIds = new Set();
+    // 2️⃣ [개인화 데이터] 내 좋아요 목록 캐시 조회 및 DB 폴백
+    let myLikedPostIds = new Set<number>();
+
     if (currentUserId) {
-        const myLikes = await db.select().from(postLikes).where(eq(postLikes.userId, currentUserId));
-        myLikedPostIds = new Set(myLikes.map(l => l.postId));
+        const USER_LIKES_KEY = `user_likes_${currentUserId}`;
+        let myLikes = await getKVCache<number[]>(platform, USER_LIKES_KEY);
+
+        if (!myLikes) {
+            const likesData = await db.select({ postId: postLikes.postId })
+                                    .from(postLikes)
+                                    .where(eq(postLikes.userId, currentUserId));
+            myLikes = likesData.map(l => l.postId);
+            await setKVCache(platform, USER_LIKES_KEY, myLikes); 
+        }
+        myLikedPostIds = new Set(myLikes);
     }
 
-    // 4️⃣ [보안 패치] 공용 캐시 데이터에 개인정보(isLiked, isMine)를 섞고, 민감한 userId는 찢어버림!
-    const postsWithStatus = posts.map(post => {
-        const { userId, ...safePost } = post; // 🚨 userId를 객체에서 분리하여 절대 프론트로 노출 안 시킴!
-        return {
-            ...safePost,
-            isLiked: myLikedPostIds.has(post.id),
-            isMine: post.userId === currentUserId
-        };
-    });
+    // 3️⃣ [보안 및 매핑] 공용 캐시에 개인정보 병합 & 민감 정보 제거
+    const postsWithStatus = posts.map(({ userId, ...safePost }) => ({
+        ...safePost,
+        isLiked: myLikedPostIds.has(safePost.id),
+        isMine: userId === currentUserId
+    }));
 
-    // 5️⃣ [보안 패치] 현재 유저의 전체 정보 노출 방지
     const safeUser = currentUser ? { 
         id: currentUser.id, 
         nickname: currentUser.nickname, 
@@ -93,18 +94,19 @@ export const actions: Actions = {
             where: eq(golabassyuPosts.id, postId)
         });
 
-        // [보안] 글 작성자 본인이 맞는지 확인!
         if (!post || post.userId !== locals.user.id) {
             return fail(403, { message: '수정 권한이 없습니다.' });
         }
 
-        // 진짜 DB 업데이트!
         await db.update(golabassyuPosts)
             .set({ content, rating })
             .where(eq(golabassyuPosts.id, postId));
 
-        // 🔥 [캐시 폭파] 내용이 바뀌었으니 캐시를 날려버림!
+        // 🔥 [캐시 무효화] 피드 캐시 + 해당 식당 리뷰 캐시 동시 폭파!
         await deleteKVCache(platform, CACHE_KEY);
+        if (post.restaurantId) {
+            await deleteKVCache(platform, `restaurant_detail_${post.restaurantId}`);
+        }
 
         return { success: true };
     },
@@ -127,11 +129,13 @@ export const actions: Actions = {
             return fail(403, { message: '삭제 권한이 없습니다.' });
         }
 
-        // DB 삭제!
         await db.delete(golabassyuPosts).where(eq(golabassyuPosts.id, postId));
 
-        // 🔥 [캐시 폭파] 글이 지워졌으니 캐시를 날려버림!
+        // 🔥 [캐시 무효화] 피드 캐시 + 해당 식당 리뷰 캐시 동시 폭파!
         await deleteKVCache(platform, CACHE_KEY);
+        if (post.restaurantId) {
+            await deleteKVCache(platform, `restaurant_detail_${post.restaurantId}`);
+        }
 
         return { success: true };
     },
@@ -145,6 +149,7 @@ export const actions: Actions = {
 
         if (!commentId) return fail(400, { message: '잘못된 요청입니다.' });
 
+        // 댓글과 그 댓글이 달린 게시글 정보를 조인해서 한 번에 가져옴 (게시글의 restaurantId 확인을 위해)
         const comment = await db.query.golabassyuComments.findFirst({
             where: eq(golabassyuComments.id, commentId)
         });
@@ -156,8 +161,17 @@ export const actions: Actions = {
 
         await db.delete(golabassyuComments).where(eq(golabassyuComments.id, commentId));
 
-        // 🔥 [캐시 폭파] 전체 게시물 배열에 `commentCount`(댓글 수)가 포함되어 있으므로 캐시를 날려야 숫자가 깎임!
+        // 게시글 정보를 가져와서 연관된 식당 캐시를 날림
+        const post = await db.query.golabassyuPosts.findFirst({
+            where: eq(golabassyuPosts.id, comment.postId),
+            columns: { restaurantId: true }
+        });
+
+        // 🔥 [캐시 무효화] 피드 캐시(댓글 수 차감) + 해당 식당 리뷰 캐시 동시 폭파!
         await deleteKVCache(platform, CACHE_KEY);
+        if (post && post.restaurantId) {
+            await deleteKVCache(platform, `restaurant_detail_${post.restaurantId}`);
+        }
 
         return { success: true };
     }

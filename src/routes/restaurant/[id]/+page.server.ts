@@ -59,25 +59,48 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 
         const { safeRestaurant, topKeywords, fetchedReviews } = cachedData;
 
-        // 3️⃣ [개인화 처리] 로그인한 유저의 "내 별점", "내 키워드", "내 좋아요" 정보만 DB에서 잽싸게 가져옴
+        // 🔥 3️⃣ [개인화 처리] 로그인한 유저의 데이터도 KV 캐시를 1순위로 조회하여 DB 찌르기 방어!
         let myRating = null;
         let myKeywords: string[] = [];
         let myLikedPostIds = new Set();
 
         if (user) {
-            const ratingData = await db.select()
-                .from(ratings)
-                .where(and(eq(ratings.restaurantId, restaurantId), eq(ratings.userId, user.id)))
-                .limit(1);
-            if (ratingData.length > 0) myRating = ratingData[0].rating;
+            // A. 내 좋아요 캐시 가져오기 (골라밧슈 피드와 완벽히 동일한 캐시 공유)
+            const USER_LIKES_KEY = `user_likes_${user.id}`;
+            let myLikes = await getKVCache<number[]>(platform, USER_LIKES_KEY);
+            
+            if (!myLikes) {
+                const myLikesData = await db.select().from(postLikes).where(eq(postLikes.userId, user.id));
+                myLikes = myLikesData.map(l => l.postId);
+                await setKVCache(platform, USER_LIKES_KEY, myLikes);
+            }
+            myLikedPostIds = new Set(myLikes);
 
-            const keywordData = await db.select()
-                .from(keywordReviews)
-                .where(and(eq(keywordReviews.restaurantId, restaurantId), eq(keywordReviews.userId, user.id)));
-            myKeywords = keywordData.map(r => r.keyword);
+            // B. 이 식당에 대한 내 평가(별점/키워드) 캐시 가져오기
+            const USER_REST_EVAL_KEY = `user_eval_${user.id}_${restaurantId}`;
+            let myEvalData = await getKVCache<any>(platform, USER_REST_EVAL_KEY);
 
-            const myLikes = await db.select().from(postLikes).where(eq(postLikes.userId, currentUserId));
-            myLikedPostIds = new Set(myLikes.map(l => l.postId));
+            if (!myEvalData) {
+                // 캐시가 없을 때만 진짜 DB를 찌릅니다!
+                const ratingData = await db.select()
+                    .from(ratings)
+                    .where(and(eq(ratings.restaurantId, restaurantId), eq(ratings.userId, user.id)))
+                    .limit(1);
+                
+                const keywordData = await db.select()
+                    .from(keywordReviews)
+                    .where(and(eq(keywordReviews.restaurantId, restaurantId), eq(keywordReviews.userId, user.id)));
+                
+                myEvalData = {
+                    myRating: ratingData.length > 0 ? ratingData[0].rating : null,
+                    myKeywords: keywordData.map(r => r.keyword)
+                };
+                
+                await setKVCache(platform, USER_REST_EVAL_KEY, myEvalData);
+            }
+
+            myRating = myEvalData.myRating;
+            myKeywords = myEvalData.myKeywords;
         }
 
         // 4️⃣ [보안] KV에서 꺼낸 리뷰 정보에 내 좋아요/내 글 여부 덮어씌우고 민감한 userId 날리기
@@ -136,7 +159,9 @@ export const actions: Actions = {
             
             await db.update(restaurants).set({ rating: newAvg }).where(eq(restaurants.id, restaurantId));
 
-            // 🔥 [캐시 폭파] 별점이 바뀌었으므로 이 식당 캐시 날림!
+            // 🔥 [캐시 폭파] 이 식당의 내 평가(별점) 캐시를 날림!
+            await deleteKVCache(platform, `user_eval_${userId}_${restaurantId}`);
+            // 🔥 [캐시 폭파] 별점 평균이 바뀌었으므로 이 식당 공용 캐시 날림!
             await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
 
             return { success: true };
@@ -163,7 +188,9 @@ export const actions: Actions = {
                 }
             }
 
-            // 🔥 [캐시 폭파] 키워드 랭킹이 바뀌었으므로 이 식당 캐시 날림!
+            // 🔥 [캐시 폭파] 이 식당의 내 평가(키워드) 캐시를 날림!
+            await deleteKVCache(platform, `user_eval_${userId}_${restaurantId}`);
+            // 🔥 [캐시 폭파] 키워드 랭킹이 바뀌었으므로 이 식당 공용 캐시 날림!
             await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
 
             return { success: true };
@@ -193,7 +220,7 @@ export const actions: Actions = {
 
         await db.delete(golabassyuComments).where(eq(golabassyuComments.id, commentId));
 
-        // 🔥 [캐시 폭파] 리뷰의 댓글 수가 줄었으니 식당 상세 캐시와 골라밧슈 피드 캐시를 동시에 터뜨림!
+        // 🔥 [캐시 폭파] 리뷰의 댓글 수가 줄었으니 식당 상세 공용 캐시와 골라밧슈 피드 캐시 터뜨림!
         await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
         await deleteKVCache(platform, 'golabassyu_all_posts');
 
@@ -221,7 +248,7 @@ export const actions: Actions = {
 
         await db.delete(golabassyuPosts).where(eq(golabassyuPosts.id, postId));
 
-        // 🔥 [캐시 폭파] 게시글이 지워졌으니 상세 캐시, 메인 피드 캐시 동시 폭파!
+        // 🔥 [캐시 폭파] 게시글이 지워졌으니 상세 공용 캐시, 메인 피드 공용 캐시 동시 폭파!
         await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
         await deleteKVCache(platform, 'golabassyu_all_posts');
 

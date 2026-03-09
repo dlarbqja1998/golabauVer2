@@ -43,26 +43,33 @@
 	</main>
 
 	<nav class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-area-bottom">
-		<div class="max-w-md mx-auto flex justify-around items-center py-3">
+		<div class="max-w-md mx-auto flex justify-around items-center h-16">
 			
-			<a href="/" class="flex flex-col items-center gap-1 {$page.url.pathname === '/' ? 'text-red-600' : 'text-gray-400'}">
+			<a href="/" class="flex flex-col items-center gap-1 w-16 {$page.url.pathname === '/' ? 'text-[#8B0029]' : 'text-gray-400 hover:text-gray-600'} transition-colors">
 				<Home size={24} />
 				<span class="text-[10px] font-bold">홈</span>
 			</a>
 
-			<a href="/search" class="flex flex-col items-center gap-1 {$page.url.pathname === '/search' ? 'text-red-600' : 'text-gray-400'}">
+			<a href="/search" class="flex flex-col items-center gap-1 w-16 {$page.url.pathname === '/search' ? 'text-[#8B0029]' : 'text-gray-400 hover:text-gray-600'} transition-colors">
 				<Search size={24} />
-				<span class="text-[10px] font-medium">검색</span>
+				<span class="text-[10px] font-bold">검색</span>
 			</a>
 
-			<a href="/golabassyu" class="flex flex-col items-center gap-1 {$page.url.pathname.startsWith('/golabassyu') ? 'text-red-600' : 'text-gray-400'}">
+			<div class="relative w-16 h-full flex justify-center">
+				<a href="/roulette" class="absolute -top-5 flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-[#8B0029] to-[#E51937] rounded-full shadow-[0_4px_10px_rgba(139,0,41,0.3)] border-[4px] border-white active:scale-95 transition-transform group z-10">
+					<span class="text-2xl transition-transform duration-700 group-hover:rotate-[360deg]">🎡</span>
+				</a>
+				<span class="text-[10px] font-bold absolute bottom-1 {$page.url.pathname.startsWith('/roulette') ? 'text-[#8B0029]' : 'text-gray-400'}"></span>
+			</div>
+
+			<a href="/golabassyu" class="flex flex-col items-center gap-1 w-16 {$page.url.pathname.startsWith('/golabassyu') ? 'text-[#8B0029]' : 'text-gray-400 hover:text-gray-600'} transition-colors">
 				<MessageCircle size={24} />
 				<span class="text-[10px] font-bold tracking-tight">골라밧슈</span>
 			</a>
 
-			<a href="/my" class="flex flex-col items-center gap-1 {$page.url.pathname === '/my' ? 'text-red-600' : 'text-gray-400'}">
+			<a href="/my" class="flex flex-col items-center gap-1 w-16 {$page.url.pathname === '/my' ? 'text-[#8B0029]' : 'text-gray-400 hover:text-gray-600'} transition-colors">
 				<User size={24} />
-				<span class="text-[10px] font-medium">마이</span>
+				<span class="text-[10px] font-bold">마이</span>
 			</a>
 
 		</div>

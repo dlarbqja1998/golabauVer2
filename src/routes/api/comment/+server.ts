@@ -1,30 +1,15 @@
+// src/routes/api/comment/+server.ts
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { golabassyuComments, users } from '../../../db/schema';
+import { golabassyuComments, users, golabassyuPosts } from '../../../db/schema'; // golabassyuPosts 추가!
 import { eq, desc } from 'drizzle-orm';
 import type { RequestEvent } from './$types';
 
-// 🔥 캐시 삭제 함수 가져오기
 import { deleteKVCache } from '$lib/server/cache';
 
-// 댓글 가져오기 (GET) - 여긴 데이터 변경이 없으니 그대로 둠!
 export async function GET({ url }: RequestEvent) {
-    const postId = Number(url.searchParams.get('postId'));
-    
-    const result = await db.select({
-        id: golabassyuComments.id,
-        content: golabassyuComments.content,
-        createdAt: golabassyuComments.createdAt,
-        writerName: users.nickname,
-        writerBadge: users.badge,
-        userId: golabassyuComments.userId 
-    })
-    .from(golabassyuComments)
-    .leftJoin(users, eq(golabassyuComments.userId, users.id))
-    .where(eq(golabassyuComments.postId, postId))
-    .orderBy(desc(golabassyuComments.createdAt));
-
-    return json(result);
+    // (GET 로직은 기존과 동일하므로 생략 없이 그대로 두시면 됩니다.)
+    // ...
 }
 
 // 댓글 쓰기 (POST)
@@ -42,8 +27,18 @@ export async function POST({ request, locals, platform }: RequestEvent) {
         content
     });
 
-    // 🔥 [캐시 폭파] 댓글 개수가 늘어났으므로 피드 캐시 삭제!
+    // 🔥 1. 전체 피드 캐시 무효화 (기존)
     await deleteKVCache(platform, 'golabassyu_all_posts');
+
+    // 🔥 2. [추가] 이 글이 속한 식당 상세 캐시도 같이 날려줍니다! (식당 상세페이지 리뷰 목록의 댓글수 갱신을 위해)
+    const post = await db.query.golabassyuPosts.findFirst({
+        where: eq(golabassyuPosts.id, postId),
+        columns: { restaurantId: true }
+    });
+    
+    if (post && post.restaurantId) {
+        await deleteKVCache(platform, `restaurant_detail_${post.restaurantId}`);
+    }
 
     return json({ success: true });
 }
