@@ -2,9 +2,20 @@
 	import './layout.css';
 	import { page } from '$app/stores';
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
+	import { afterNavigate } from '$app/navigation'; // 🔥 [추가] 라우팅 감지를 위한 함수 임포트
 
 	// Svelte 5 Props (data 추가!)
 	let { data, children } = $props();
+
+	// ==========================================
+	// 🔥 [PostHog View] 페이지 이동할 때마다 '조회' 로그 찍기
+	// ==========================================
+	afterNavigate(() => {
+		// 화면 전환(네비게이션 바 클릭 등)이 일어날 때마다 무조건 실행됨
+		if (typeof window !== 'undefined' && window.posthog) {
+			window.posthog.capture('$pageview');
+		}
+	});
 
 	// ==========================================
 	// 🔥 [PostHog Who] 유저 명찰(Identify) 달아주기
