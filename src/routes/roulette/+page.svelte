@@ -205,7 +205,7 @@
         <a href="/" class="p-2 -ml-2 text-gray-800 active:scale-95">
             <ChevronLeft size={24} />
         </a>
-        <h1 class="text-xl font-bold font-['Jua'] text-[#8B0029]">운명의 돌림판 🎡</h1>
+        <h1 class="text-xl font-bold font-['Jua'] text-[#8B0029]">운명의 돌림판</h1>
         <div class="w-8"></div>
     </header>
 
@@ -249,6 +249,35 @@
                             조건을 설정하고<br /><br />돌려바유!
                         </span>
                     </div>
+                {:else}
+                    {#each wheelItems as item, i}
+                        {#if item.type === 'bet'}
+                            <div
+                                class="absolute top-0 left-0 w-full h-full"
+                                style="transform: rotate({(360 / wheelItems.length) * i + (360 / wheelItems.length) / 2}deg);"
+                            >
+                                <div class="flex flex-col items-center pt-6 h-1/2">
+                                    <span 
+                                        class="text-white font-bold font-['Jua'] text-lg drop-shadow-md" 
+                                        style="writing-mode: vertical-rl; text-orientation: upright;"
+                                    >
+                                        {item.name}
+                                    </span>
+                                </div>
+                            </div>
+                        {:else if item.type === 'restaurant'}
+                            <div
+                                class="absolute top-0 left-0 w-full h-full"
+                                style="transform: rotate({(360 / wheelItems.length) * i + (360 / wheelItems.length) / 2}deg);"
+                            >
+                                <div class="flex flex-col items-center pt-5 h-1/2">
+                                    <span class="text-white font-bold font-['Jua'] text-3xl drop-shadow-md">
+                                        {['돌', '', '아', '', '가', '', '유', ''][i]}
+                                    </span>
+                                </div>
+                            </div>    
+                        {/if}
+                    {/each}
                 {/if}
             </div>
 
