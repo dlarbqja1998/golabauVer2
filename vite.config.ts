@@ -13,9 +13,11 @@ export default defineConfig({
 		tailwindcss(), // 디자인 엔진
 		sveltekit(),
 		SvelteKitPWA({
-			strategies: 'injectManifest', // ★ 우리가 직접 만든 서비스 워커 파일을 쓰겠다는 설정
-			srcDir: 'src',
-			filename: 'service-worker.ts', // 읽어들일 워커 파일 이름
+			strategies: 'generateSW', // ★ 빌드 안정성을 위해 자동 생성 모드 사용
+			registerType: 'autoUpdate', // 🔥 새 버전 발견 시 백그라운드에서 즉시 교체!
+			workbox: {
+				importScripts: ['/sw-push.js'], // 푸시 알림 로직은 별도 파일로 분리
+			},
 			manifest: {
 				name: '골라바유',
 				short_name: '골라바유',
