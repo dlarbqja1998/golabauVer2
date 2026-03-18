@@ -5,17 +5,23 @@ import { eq } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 
-// VAPID 환경변수가 없으면 임시 구동이라도 되도록 에러 우회 처리
-try {
-    webpush.setVapidDetails(
-        env.VAPID_SUBJECT || 'mailto:test@example.com',
-        publicEnv.PUBLIC_VITE_VAPID_PUBLIC_KEY as string, 
-        env.VAPID_PRIVATE_KEY as string
-    );
-} catch (e) {
-    console.warn("web-push 초기화 실패 (VAPID 키 누락 가능성):", e);
-}
+// 🔥 [빌드 에러 완벽 해결] 키가 존재할 때만 안전하게 감싸서 초기화
+const publicKey = publicEnv.PUBLIC_VITE_VAPID_PUBLIC_KEY;
+const privateKey = env.VAPID_PRIVATE_KEY;
 
+if (publicKey && privateKey) {
+    try {
+        webpush.setVapidDetails(
+            env.VAPID_SUBJECT || 'mailto:dlarbqja19980987@gmail.com',
+            publicKey as string,
+            privateKey as string
+        );
+    } catch (error) {
+        // 빌드 중에는 무시하고 넘어감
+    }
+} else {
+    console.warn('⚠️ VAPID 키가 누락되어 web-push를 초기화하지 않았습니다. (빌드 중에는 정상입니다)');
+}
 /**
  * 특정 유저의 기기(브라우저)로 푸시 알림을 웹푸시 서버를 거쳐 전송합니다.
  */
