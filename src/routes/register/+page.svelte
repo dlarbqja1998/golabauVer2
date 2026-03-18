@@ -11,23 +11,23 @@
 </script>
 
 <div class="pt-6 border-t border-gray-100">
-    <p class="text-sm font-bold text-gray-700 mb-1">소속 <span class="text-gray-400 font-normal text-xs ml-1">(선택사항)</span></p>
+    <p class="text-sm font-bold text-gray-700 mb-1">소속 <span class="text-[#8B0029] font-normal text-xs ml-1">('만나볼텨?' 이용 시 필수)</span></p>
     <p class="text-[11px] text-[#8B0029] font-bold bg-red-50 p-2 rounded-lg mb-3">
-        💡 '만나볼텨?' (매칭 서비스)를 이용하시려면 소속 및 연락처 입력이 필수입니다!
+        💡 '만나볼텨?' (매칭 서비스)를 이용하시려면 단과대학 및 학과 입력이 필수입니다!
     </p>
     
     <div class="space-y-3">
         <input type="text" name="nickname" placeholder="닉네임 (2~10자)" required minlength="2" maxlength="10" class="w-full border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm" />
         
         <div class="flex gap-2">
-            <select name="grade" class="flex-1 appearance-none border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm">
-                <option value="" selected>학년 선택 (필수)</option>
+            <select name="grade" required class="flex-1 appearance-none border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm">
+                <option value="" selected disabled>학년 선택 (필수)</option>
                 {#each ['1학년', '2학년', '3학년', '4학년', '대학원생', '졸업생', '기타'] as g}
                     <option value={g}>{g}</option>
                 {/each}
             </select>
 
-            <input type="number" name="birthYear" placeholder="출생연도 (예: 2001)" min="1950" max="2010" class="flex-1 border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm" />
+            <input type="number" name="birthYear" required placeholder="출생연도 (예: 2001)" min="1950" max="2010" class="flex-1 border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm" />
         </div>
 
         <div class="flex gap-2">
@@ -62,7 +62,12 @@
 </div>
 
 <div class="pt-6 border-t border-gray-100">
-    <p class="text-sm font-bold text-gray-700 mb-2">연락처 <span class="text-gray-400 font-normal text-xs ml-1">(선택사항)</span></p>
+    <p class="text-sm font-bold text-gray-700 mb-2">연락처 <span class="text-[#8B0029] font-normal text-xs ml-1">('만나볼텨?' 이용 시 필수)</span></p>
+    
+    <p class="text-[11px] text-[#8B0029] font-bold bg-red-50 p-2 rounded-lg mb-3">
+        💡 매칭 성사 시 연락을 위해 <strong>카카오톡 ID 또는 인스타그램 ID 중 하나만</strong> 입력하셔도 됩니다!
+    </p>
+
     <div class="flex flex-col gap-3">
         <input type="text" name="kakaoId" placeholder="카카오톡 ID (예: golabau123)" class="w-full border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm" />
         <input type="text" name="instaId" placeholder="인스타그램 ID (예: @golabau_official)" class="w-full border border-gray-300 rounded-xl px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-red-200 text-sm" />
