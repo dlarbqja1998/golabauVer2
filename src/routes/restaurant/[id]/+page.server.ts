@@ -1,6 +1,6 @@
 // src/routes/restaurant/[id]/+page.server.ts
 import { db } from '$lib/server/db';
-import { restaurants, keywordReviews, ratings, golabassyuPosts, postLikes, golabassyuComments } from '../../../db/schema';
+import { restaurants, keywordReviews, ratings, golabassyuPosts, postLikes, golabassyuComments, users, pointLogs } from '../../../db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
@@ -151,6 +151,10 @@ export const actions: Actions = {
                 await db.update(ratings).set({ rating }).where(eq(ratings.id, existingRating[0].id));
             } else {
                 await db.insert(ratings).values({ restaurantId, userId, rating });
+                
+                // 🔥 다녀왔슈(별점) 최초 작성 시 7P 지급
+                await db.update(users).set({ points: sql`${users.points} + 7` }).where(eq(users.id, userId));
+                await db.insert(pointLogs).values({ userId, amount: 7, reason: '다녀왔슈 리뷰 작성' });
             }
 
             const avgResult = await db.select({ avg: sql<number>`avg(${ratings.rating})` })

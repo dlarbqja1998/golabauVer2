@@ -1,9 +1,9 @@
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 declare global {
-	namespace App {
-		// interface Error {}
-		interface Locals {
+    namespace App {
+        // interface Error {}
+        interface Locals {
             // 여기에 user 타입을 정의해줍니다.
             user: {
                 id: number;
@@ -15,18 +15,18 @@ declare global {
                 role: string | null; // 🔥 여기에 role을 추가!
             } | null;
         }
-		// interface PageData {}
-		// interface PageState {}
-		interface Platform {
+        // interface PageData {}
+        // interface PageState {}
+        interface Platform {
             env: {
-				GOLABAU_CACHE: KVNamespace;
-			};
-			context: {
-				waitUntil(promise: Promise<any>): void;
-			};
-			caches: CacheStorage & { default: Cache };
+                GOLABAU_CACHE: KVNamespace;
+            };
+            context: {
+                waitUntil(promise: Promise<any>): void;
+            };
+            caches: CacheStorage & { default: Cache };
         }
-	}
+    }
 }
 
-export {};
+export { };

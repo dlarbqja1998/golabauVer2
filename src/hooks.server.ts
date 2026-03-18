@@ -38,21 +38,22 @@ export const handle: Handle = async ({ event, resolve }) => {
     // =======================================================
     // 라우터 폴더명 기준입니다. 만약 다녀왔슈 게시판 주소가 /board 라면 /golabassyu 대신 /board를 넣으세요!
     const protectedPaths = [
-        '/my', 
-        '/write', 
-        '/auth', 
+        '/my',
+        '/write',
+        '/auth',
         '/api',         // 문의하기, 좋아요, 댓글 작성 등 모든 백엔드 액션 허용
         '/restaurant',  // 식당 상세페이지 (별점, 키워드 리뷰 허용)
-        '/golabassyu'   // 🔥 다녀왔슈 커뮤니티 (좋아요, 댓글 허용)
-    ]; 
-    
+        '/golabassyu',   // 🔥 다녀왔슈 커뮤니티 (좋아요, 댓글 허용)
+        '/meetup'
+    ];
+
     // 현재 접속한 주소가 위 배열에 포함되어 있는지 확인
     const isProtectedPath = protectedPaths.some(p => path.startsWith(p));
 
     // 보호된 주소가 아니라면 (예: 메인화면 '/', 식당리스트 '/list/한식')
     // DB 찌르지 말고 바로 렌더링해서 보내버림 (DB 요금 0원!)
     if (!isProtectedPath) {
-        return await resolve(event); 
+        return await resolve(event);
     }
 
     // =======================================================
@@ -80,13 +81,13 @@ export const handle: Handle = async ({ event, resolve }) => {
             profileImg: user.profileImg,
             badge: user.badge,
             isOnboarded: user.isOnboarded,
-            role: user.role 
+            role: user.role
         };
 
-        const isAllowedPath = 
-            path === '/register' || 
-            path.startsWith('/auth') || 
-            path === '/login'; 
+        const isAllowedPath =
+            path === '/register' ||
+            path.startsWith('/auth') ||
+            path === '/login';
 
         if (!user.isOnboarded && !isAllowedPath) {
             return new Response(null, {

@@ -28,7 +28,8 @@ export async function getCafeteriaMenu() {
         const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
+            },
+            signal: AbortSignal.timeout(2000) // 🔥 학교 서버 죽었을 때 2초 만에 손절해서 홈 화면 지연 방지
         });
         
         if (!response.ok) throw new Error(`네트워크 에러: HTTP 상태 코드 ${response.status}`);

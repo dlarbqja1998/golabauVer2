@@ -3,6 +3,7 @@
     import { Settings, Save, Camera } from 'lucide-svelte';
     import { universityData } from '$lib/data/majors';
     import { fly } from 'svelte/transition';
+    import { page } from '$app/stores';
 
     let { data, form } = $props();
     let user = $derived(data.user);
@@ -11,17 +12,13 @@
     // 상태 관리
     let isEditing = $state(false);
     let loading = $state(false);
-    
-    // 🔥 [추가] 관리자 입력창 표시 상태
     let showAdminInput = $state(false);
 
     // 수정 모드용 선택 값
     let editCollege = $state('');
-    
-    // 선택된 단과대에 따라 학과 목록 자동 갱신
     let deptList = $derived(editCollege ? universityData[editCollege] : []);
 
-    // 토스트 알림 상태 및 함수 추가
+    // 토스트 알림 상태
     let toastMessage = $state('');
     let toastTimeout;
 
@@ -30,12 +27,16 @@
         if (toastTimeout) clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => {
             toastMessage = '';
-        }, 2500); 
+        }, 3000); 
     }
 
-    // 서버에서 에러 뱉었을 때 토스트 띄우기
+    // 🔥 [입구컷] 만나볼텨?에서 쫓겨나서 온 경우 경고창 + 폼 자동 열기
     $effect(() => {
-        if (form?.error || form?.message) {
+        if ($page.url.searchParams.get('error') === 'meetup_profile') {
+            showToast('🚨 만나볼텨? 이용을 위해 단과대/학과 및 연락처를 입력해주세요!');
+            editCollege = user.college || '';
+            isEditing = true;
+        } else if (form?.error || form?.message) {
             showToast(`⚠️ ${form.message || '오류가 발생했습니다.'}`);
         }
     });
@@ -45,30 +46,34 @@
         isEditing = true;
     }
 
+    // 프로필 수정 액션 (PostHog 트래킹 추가)
     const submitProfile = () => {
+        if (typeof window !== 'undefined' && window.posthog) {
+            window.posthog.capture('attempt_update_profile');
+        }
         return async ({ update, result }) => {
             loading = true;
-            await update({ reset: false }); // 화면 덜컹거림 방지
+            await update({ reset: false }); 
             loading = false;
             
             if (result.type === 'success') {
                 isEditing = false;
                 showToast('프로필이 수정되었습니다! 🎉');
-            } else if (result.type === 'failure') {
-                // 서버에서 fail()로 뱉은 메시지는 위 $effect에서 알아서 잡아줌
-            } else {
+                if (typeof window !== 'undefined' && window.posthog) {
+                    window.posthog.capture('updated_profile_success');
+                }
+            } else if (result.type !== 'failure') {
                 showToast('수정 중 오류가 발생했습니다 🥲');
             }
         };
     };
 
-    // 🔥 [추가] 관리자 폼 제출 액션 핸들러
+    // 관리자 권한 획득 액션
     const submitAdmin = () => {
         return async ({ update, result }) => {
             if (result.type === 'success') {
                 showToast(result.data?.message || '관리자 권한 획득 성공! 👑');
                 showAdminInput = false;
-                // 권한 정보(locals) 갱신을 위해 페이지 새로고침
                 setTimeout(() => window.location.reload(), 1500);
             } else {
                 showToast(result.data?.message || '비밀코드가 틀렸습니다 ❌');
@@ -83,7 +88,6 @@
     <div class="bg-white p-6 mb-4 shadow-sm rounded-b-3xl relative z-10">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold font-['Jua']">마이페이지</h1>
-            
             {#if !isEditing}
                 <button onclick={startEditing} class="text-gray-400 hover:text-black transition-colors p-2 bg-gray-50 rounded-full">
                     <Settings size={20} />
@@ -108,12 +112,7 @@
             </div>
             
             {#if isEditing}
-                <form 
-                    method="POST" 
-                    action="?/updateProfile" 
-                    use:enhance={submitProfile}
-                    class="w-full flex flex-col gap-3 mt-2"
-                >
+                <form method="POST" action="?/updateProfile" use:enhance={submitProfile} class="w-full flex flex-col gap-3 mt-2">
                     <div>
                         <label class="text-xs text-gray-400 font-bold block text-left mb-1 ml-1">닉네임</label>
                         <input type="text" name="nickname" value={user.nickname} class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-center font-bold focus:outline-none focus:border-black" />
@@ -134,11 +133,7 @@
                     <div class="flex gap-2">
                         <div class="flex-1">
                             <label class="text-xs text-gray-400 font-bold block text-left mb-1 ml-1">단과대</label>
-                            <select 
-                                name="college" 
-                                bind:value={editCollege} 
-                                class="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-center font-medium focus:outline-none focus:border-black"
-                            >
+                            <select name="college" bind:value={editCollege} class="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-center font-medium focus:outline-none focus:border-black">
                                 <option value="" disabled>선택</option>
                                 {#each Object.keys(universityData) as collegeName}
                                     <option value={collegeName}>{collegeName}</option>
@@ -147,11 +142,7 @@
                         </div>
                         <div class="flex-1">
                             <label class="text-xs text-gray-400 font-bold block text-left mb-1 ml-1">학과</label>
-                            <select 
-                                name="department" 
-                                value={user.department} 
-                                class="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-center font-medium focus:outline-none focus:border-black"
-                            >
+                            <select name="department" value={user.department} class="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-center font-medium focus:outline-none focus:border-black">
                                 <option value="" disabled>선택</option>
                                 {#each deptList as dept}
                                     <option value={dept}>{dept}</option>
@@ -160,10 +151,28 @@
                         </div>
                     </div>
 
+                    <div class="bg-red-50/50 p-3 rounded-xl border border-red-100 mt-2">
+                        <p class="text-[11px] font-bold text-[#8B0029] mb-2">📞 만나볼텨? 연락 수단 (최소 1개 필수)</p>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-gray-600 w-12 text-left">카톡 ID</span>
+                                <input type="text" name="kakaoId" value={user.kakaoId || ''} placeholder="카카오톡 ID 입력" class="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:border-[#8B0029] outline-none" />
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-gray-600 w-12 text-left">인스타</span>
+                                <input type="text" name="instaId" value={user.instaId || ''} placeholder="인스타그램 ID 입력" class="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:border-[#8B0029] outline-none" />
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex gap-2 mt-2 w-full">
                         <button type="button" onclick={() => isEditing = false} class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">취소</button>
-                        <button type="submit" class="flex-1 py-3 bg-black text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
-                            <Save size={16} /> 저장
+                        <button type="submit" disabled={loading} class="flex-1 py-3 bg-black text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                            {#if loading}
+                                <span class="animate-spin">⏳</span> 저장 중...
+                            {:else}
+                                <Save size={16} /> 저장
+                            {/if}
                         </button>
                     </div>
                 </form>

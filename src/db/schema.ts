@@ -26,7 +26,14 @@ export const users = pgTable("user", {
 
     // ▼▼▼ 관리자 및 제재용 컬럼 ▼▼▼
     role: text("role").default('user'),           // 'user' 또는 'admin'
-    isBanned: boolean("is_banned").default(false) // 악성 유저 밴 처리용
+    isBanned: boolean("is_banned").default(false), // 악성 유저 밴 처리용
+
+    // ▼▼▼ [업데이트: 만나볼텨? 기능 추가 컬럼] ▼▼▼
+    trustScore: real("trust_score").default(36.5), // 매너 온도 (기본값 36.5도)
+    reportCount: integer("report_count").default(0), // 신고 누적 횟수 (3회 시 정지)
+    status: text("status").default('ACTIVE'), // 계정 상태 ('ACTIVE', 'SUSPENDED')
+    kakaoId: text("kakao_id"), // 연락처 자동완성용 카톡 ID
+    instaId: text("insta_id"), // 연락처 자동완성용 인스타 ID
 });
 
 // =========================================================
@@ -141,5 +148,69 @@ export const userLogs = pgTable("user_logs", {
     metadata: json("metadata"),
 
     // 4. 언제?
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+// =========================================================
+//  4. '만나볼텨?' 소셜 매칭 데이터베이스
+// =========================================================
+
+// 4-1. 방 정보 테이블
+export const rooms = pgTable("rooms", {
+    id: serial("id").primaryKey(),
+    creatorId: integer("creator_id").notNull().references(() => users.id, { onDelete: 'cascade' }), // 방장 ID
+    title: text("title").notNull(), // 방 제목
+    appointmentTime: timestamp("appointment_time", { withTimezone: true, mode: 'string' }).notNull(), // 약속 날짜 및 시간
+    
+    // 식당 정보 (골라바유 DB 연동)
+    restaurantId: bigint("restaurant_id", { mode: "number" }).references(() => restaurants.id, { onDelete: 'set null' }), 
+    restaurantName: text("restaurant_name").notNull(), // 조인 없이 빠른 렌더링을 위한 식당 이름
+    
+    // 매칭 조건
+    meetingType: text("meeting_type").notNull(), // 'BABYAK'(밥약), 'GWATING'(과팅)
+    genderCondition: text("gender_condition").notNull(), // 'ALL'(전체), 'MALE'(남자), 'FEMALE'(여자)
+    headcountCondition: text("headcount_condition"), // 인원 비율 (예: '2:2', '3:3' - 과팅일 경우)
+
+    // 연락처 정보 (비용 제로 매칭용)
+    contactType: text("contact_type").notNull(), // 'KAKAO', 'INSTA'
+    contactId: text("contact_id").notNull(), // 연락받을 ID
+
+    // 시스템 및 정렬
+    bumpedAt: timestamp("bumped_at", { withTimezone: true, mode: 'string' }).defaultNow(), // 상점 아이템(끌올) 적용 시점
+    status: text("status").default('OPEN'), // 'OPEN'(모집중), 'MATCHED'(성사됨), 'CANCELED'(취소됨)
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+// 4-2. 방 참여자 및 레디 상태 테이블 (메이플 교환창 컨셉)
+export const roomParticipants = pgTable("room_participants", {
+    id: serial("id").primaryKey(),
+    roomId: integer("room_id").notNull().references(() => rooms.id, { onDelete: 'cascade' }),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+    role: text("role").notNull(), // 'HOST'(방장), 'APPLICANT'(신청자)
+    isReady: boolean("is_ready").default(false), // 레디 버튼 클릭 여부
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+// =========================================================
+//  5. 포인트 및 PWA 푸시 알림 인프라
+// =========================================================
+
+// 5-1. 포인트 획득/사용 내역 (선순환 구조 및 상점)
+export const pointLogs = pgTable("point_logs", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+    amount: integer("amount").notNull(), // 변동 포인트 (획득은 양수, 사용/차감은 음수)
+    reason: text("reason").notNull(), // 내역 사유 (예: '리뷰 작성', '끌올권 구매', '어뷰징 차감')
+    createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+// 5-2. PWA 푸시 알림 구독 정보 (기기별 알림 발송용)
+export const pushSubscriptions = pgTable("push_subscriptions", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text("endpoint").notNull(), // 브라우저 푸시 서비스 URL
+    p256dh: text("p256dh").notNull(), // 암호화 키
+    auth: text("auth").notNull(), // 인증 키
+    userAgent: text("user_agent"), // 어떤 기기/브라우저인지 식별용 (선택)
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });

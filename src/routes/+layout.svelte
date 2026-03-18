@@ -25,10 +25,9 @@
 		if (typeof window !== 'undefined' && window.posthog) {
 			
 			if (data?.user) {
-				// 1. 보호된 경로(/mypage 등)에 들어가서 DB 유저 정보가 있을 때 식별!
-				window.posthog.identify(data.user.id, {
-					name: data.user.nickname, 
-					nickname: data.user.nickname
+				// 🔥 KV 캐시 덕분에 모든 페이지에서 유저 식별 가능! (고유 ID 사용)
+				window.posthog.identify(String(data.user.id), {
+					nickname: data.user.nickname,
 				});
 			} else if (!data?.hasSession) {
 				// 2. ⭐️ 핵심 포인트: data.user가 없더라도 세션 쿠키가 있다면(홈 화면 등) 가만히 냅둠!

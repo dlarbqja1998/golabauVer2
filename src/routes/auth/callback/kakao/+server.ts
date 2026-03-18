@@ -4,8 +4,9 @@ import { db } from '$lib/server/db';
 import { users } from '../../../../db/schema'; // 상대경로 확인
 import { eq } from 'drizzle-orm';
 import { env } from '$env/dynamic/private'; // 🔥 dynamic으로 변경!
+import { setKVCache } from '$lib/server/cache';
 
-export const GET: RequestHandler = async ({ url, cookies }) => {
+export const GET: RequestHandler = async ({ url, cookies, platform }) => {
     // 1. 인가 코드 확인
     const code = url.searchParams.get('code');
     if (!code) throw error(400, '인가 코드가 없습니다.');
@@ -64,6 +65,17 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7 
     });
+
+    // 🔥 6. KV 캐시에 유저 데이터 저장 (비보호 경로에서 DB 안 찌르고 사용!)
+    await setKVCache(platform, `user:${user.id}`, {
+        id: user.id,
+        nickname: user.nickname,
+        email: user.email,
+        profileImg: user.profileImg,
+        badge: user.badge,
+        isOnboarded: user.isOnboarded,
+        role: user.role,
+    }, 3600);
 
     // ▼▼▼ [핵심 변경] 추가 정보 입력 안 했으면 납치! ▼▼▼
     if (!user.isOnboarded) {

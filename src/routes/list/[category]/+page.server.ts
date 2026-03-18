@@ -3,9 +3,10 @@ import { db } from '$lib/server/db';
 import { restaurants, keywordReviews, ratings } from '../../../db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm'; 
 import type { PageServerLoad } from './$types';
+import { getKVCache, setKVCache } from '$lib/server/cache'; 
 
-// 🔥 [수정됨] 매개변수에 setHeaders를 추가로 받아옵니다.
-export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
+// 🔥 [수정됨] 매개변수에 setHeaders와 platform을 추가로 받아옵니다.
+export const load: PageServerLoad = async ({ params, url, setHeaders, platform }) => {
     
     // 🔥 [핵심 방어막] Cloudflare Edge 서버에 5초간 캐시, 만료 후 10초 동안은 백그라운드에서 갱신
     setHeaders({
@@ -18,6 +19,15 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
     const currentZone = url.searchParams.get('zone') || '전체'; 
     const limit = 15;
     const offset = (page - 1) * limit;
+
+    // 🚀 KV 캐시 키 조합 (카테고리 + 존 + 정렬 + 현재 페이지 번호)
+    const CACHE_KEY = `list_${encodeURIComponent(category)}_${encodeURIComponent(currentZone)}_${sort}_page_${page}`;
+    
+    // 1️⃣ [캐시 읽기] 공용 식당 리스트 (2시간 TTL)
+    const cachedList = await getKVCache<any>(platform, CACHE_KEY);
+    if (cachedList) {
+        return cachedList;
+    }
 
     try {
         const whereConditions = [eq(restaurants.mainCategory, category)];
@@ -71,13 +81,18 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
             return { ...r, topKeywords };
         }));
 
-        return {
+        const resultData = {
             category,
             restaurants: listWithKeywords,
             sort,
             currentZone, 
             pagination: { page, totalPages, totalCount }
         };
+
+        // 🔥 KV 캐시에 2시간(7200초) 단위로 식당 리스트 결과물 적재! (N+1 폭격 원천 방어)
+        await setKVCache(platform, CACHE_KEY, resultData, 7200);
+
+        return resultData;
     } catch (error) {
         console.error('데이터 로드 실패:', error);
         return { category, restaurants: [], sort: 'rating', currentZone: '전체', pagination: { page: 1, totalPages: 1, totalCount: 0 } };

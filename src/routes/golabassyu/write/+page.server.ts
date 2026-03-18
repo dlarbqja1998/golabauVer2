@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
-import { golabassyuPosts, ratings, restaurants } from '../../../db/schema'; 
-import { eq } from 'drizzle-orm';
+import { golabassyuPosts, ratings, restaurants, users, pointLogs } from '../../../db/schema'; 
+import { eq, sql } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 import { containsBadWord } from '$lib/server/badwords';
@@ -47,9 +47,14 @@ export const actions = {
             return fail(400, { message: '욕설이나 비속어는 등록할 수 없습니다.' });
         }
 
+        const isPhotoAttached = !!imageUrl && imageUrl.trim().length > 0;
+        const pointReward = isPhotoAttached ? 10 : 7;
+        const userId = locals.user.id; // TS Lint 해결용 변수 캡처
+
         try {
+            // 트랜잭션(tx) 없이 순차적 비동기 처리
             await db.insert(golabassyuPosts).values({
-                userId: locals.user.id, 
+                userId: userId, 
                 restaurantName: realRestaurantName,
                 restaurantId: restaurantId,
                 rating: rating,
@@ -64,19 +69,30 @@ export const actions = {
                 await db.insert(ratings).values({
                     restaurantId: restaurantId,
                     rating: rating,
-                    userId: locals.user.id, 
+                    userId: userId, 
                 });
             } catch (e) {
                 console.error("평점 반영 실패:", e);
             }
 
+            // 포인트 지급 로직
+            await db.update(users)
+                .set({ points: sql`${users.points} + ${pointReward}` })
+                .where(eq(users.id, userId));
+            
+            await db.insert(pointLogs).values({
+                userId: userId,
+                amount: pointReward,
+                reason: isPhotoAttached ? '사진 첨부 리뷰 작성' : '일반 리뷰 작성'
+            });
         } catch (err) {
             console.error('글쓰기 에러:', err);
             return fail(500, { message: '글 저장에 실패했습니다.' });
         }
 
-        // 🔥 [캐시 폭파] 새 글이 작성되었으므로 피드 전체 캐시를 날려서 갱신시킴!
+        // 🔥 [캐시 폭파] 새 글이 작성되었으므로 피드 전체 캐시 및 식당 캐시 동시 폭파!
         await deleteKVCache(platform, 'golabassyu_all_posts');
+        await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
 
         if (returnTo) {
             throw redirect(303, returnTo);

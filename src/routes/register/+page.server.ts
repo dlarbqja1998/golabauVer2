@@ -1,4 +1,4 @@
-import { redirect, fail } from '@sveltejs/kit'; // fail 추가
+import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '../../db/schema';
@@ -7,15 +7,9 @@ import { eq } from 'drizzle-orm';
 export const load: PageServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('session_id');
     if (!sessionId) throw redirect(303, '/login');
-
     const userId = parseInt(sessionId);
-    const user = await db.query.users.findFirst({
-        where: eq(users.id, userId)
-    });
-
-    if (user && user.isOnboarded) {
-        throw redirect(303, '/my');
-    }
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (user && user.isOnboarded) throw redirect(303, '/my');
     return { user };
 };
 
@@ -25,31 +19,25 @@ export const actions: Actions = {
         if (!sessionId) throw redirect(303, '/login');
 
         const formData = await request.formData();
-        
-        // 폼 데이터 가져오기
-        const nickname = formData.get('nickname')?.toString().trim(); // [추가] 닉네임
+        const nickname = formData.get('nickname')?.toString().trim();
         const college = formData.get('college') as string;
         const department = formData.get('department') as string;
         const grade = formData.get('grade') as string;
         const birthYear = formData.get('birthYear');
         const gender = formData.get('gender') as string;
+        const kakaoId = formData.get('kakaoId')?.toString().trim() || null; // 🔥 추가
+        const instaId = formData.get('instaId')?.toString().trim() || null; // 🔥 추가
 
-        // [추가] 닉네임 유효성 검사
         if (!nickname || nickname.length < 2 || nickname.length > 10) {
-            console.log(`[보안] 닉네임 길이 조작 시도 감지: ${nickname?.length}자`);
             return fail(400, { message: '닉네임은 2글자 이상, 10글자 이하로 입력해주세요.' });
         }
 
-        // DB 업데이트
         await db.update(users)
             .set({
-                nickname,    // [추가] 닉네임 저장!
-                college,     // 단과대
-                department,  // 학과
-                grade,       // 학년
-                birthYear: birthYear ? parseInt(birthYear.toString()) : null, // 출생연도
-                gender,      // 성별
-                isOnboarded: true // 완료!
+                nickname, college, department, grade, gender,
+                birthYear: birthYear ? parseInt(birthYear.toString()) : null,
+                kakaoId, instaId, // 🔥 추가
+                isOnboarded: true
             })
             .where(eq(users.id, parseInt(sessionId)));
 
