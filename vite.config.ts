@@ -14,6 +14,7 @@ export default defineConfig({
 		sveltekit(),
 		SvelteKitPWA({
 			strategies: 'injectManifest', // ★ 우리가 직접 만든 서비스 워커 파일을 쓰겠다는 설정
+			registerType: 'autoUpdate', // 🔥 새 버전 발견 시 백그라운드에서 즉시 교체!
 			srcDir: 'src',
 			filename: 'service-worker.ts', // 읽어들일 워커 파일 이름
 			manifest: {

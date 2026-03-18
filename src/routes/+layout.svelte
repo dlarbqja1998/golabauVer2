@@ -3,6 +3,34 @@
 	import { page } from '$app/stores';
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation'; // 🔥 [추가] 라우팅 감지를 위한 함수 임포트
+	import { onMount } from 'svelte';
+
+	// ==========================================
+	// [버전 관리] 새 배포 시 딱 1번만 강제 새로고침
+	// ==========================================
+	const APP_VERSION = '2.1.0'; // ★ 배포할 때마다 이 숫자만 올려주면 됩니다!
+
+	onMount(() => {
+		const lastVersion = localStorage.getItem('app_version');
+		if (lastVersion !== APP_VERSION) {
+			// 버전이 다르면 → 기존 캐시 전부 날리고 딱 1번 새로고침
+			localStorage.setItem('app_version', APP_VERSION);
+			if ('caches' in window) {
+				caches.keys().then(names => {
+					names.forEach(name => caches.delete(name));
+				});
+			}
+			// 서비스워커도 최신으로 갱신 요청!
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.getRegistrations().then(regs => {
+					regs.forEach(reg => reg.update());
+				});
+			}
+			// 캐시 무시하고 서버에서 최신 파일 받아오기
+			location.reload();
+			return;
+		}
+	});
 
 	// Svelte 5 Props (data 추가!)
 	let { data, children } = $props();
