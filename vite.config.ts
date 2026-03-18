@@ -29,5 +29,20 @@ export default defineConfig({
 				]
 			}
 		})
-	]
+	],
+	// 🔥 여기가 28개 에러를 한방에 잠재우는 통역기(Alias) 설정입니다!
+	resolve: {
+		alias: {
+			http: 'node:http',
+			https: 'node:https',
+			crypto: 'node:crypto',
+			stream: 'node:stream',
+			util: 'node:util',
+			buffer: 'node:buffer',
+			net: 'node:net',
+			tls: 'node:tls',
+			url: 'node:url',
+			assert: 'node:assert'
+		}
+	}
 });
