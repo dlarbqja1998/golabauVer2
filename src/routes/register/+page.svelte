@@ -1,6 +1,6 @@
 <script>
     // 1. 방금 만드신 단과대/학과 데이터를 불러옵니다.
-    import { universityData } from '$lib/majors';
+    import { universityData } from '$lib/data/majors';
 
     // 2. 선택된 값을 저장할 Svelte 5 반응형 상태($state)
     let selectedCollege = $state('');
