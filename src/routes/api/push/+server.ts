@@ -1,33 +1,59 @@
-// =========================================================
-//  [src/routes/api/push/+server.ts]
-//  푸시 알림 구독 정보 DB 저장 API (빌드 에러 원천 차단 버전)
-// =========================================================
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { pushSubscriptions } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 
-// 🔥 해결: 여기 있던 webpush.setVapidDetails(...) 코드를 아예 삭제했습니다!
-// (DB에 구독 정보만 INSERT 하는 곳이라 초기화가 필요 없습니다)
+type PushSubscriptionPayload = {
+    endpoint?: string;
+    keys?: {
+        p256dh?: string;
+        auth?: string;
+    };
+};
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+    if (!locals.user) {
+        return json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
     try {
-        const { subscription, userId } = await request.json();
+        const { subscription } = (await request.json()) as {
+            subscription?: PushSubscriptionPayload;
+        };
 
-        // 중복 구독 방지: 해당 엔드포인트가 이미 있는지 확인
+        if (
+            !subscription?.endpoint ||
+            !subscription.keys?.p256dh ||
+            !subscription.keys?.auth
+        ) {
+            return json({ success: false, error: '잘못된 구독 정보입니다.' }, { status: 400 });
+        }
+
         const existingSub = await db.query.pushSubscriptions.findFirst({
             where: eq(pushSubscriptions.endpoint, subscription.endpoint)
         });
 
         if (!existingSub) {
-            // DB 스키마에 맞춰 구독 정보 Insert
             await db.insert(pushSubscriptions).values({
-                userId: userId,
+                userId: locals.user.id,
                 endpoint: subscription.endpoint,
                 p256dh: subscription.keys.p256dh,
-                auth: subscription.keys.auth,
+                auth: subscription.keys.auth
             });
+        } else if (
+            existingSub.userId !== locals.user.id ||
+            existingSub.p256dh !== subscription.keys.p256dh ||
+            existingSub.auth !== subscription.keys.auth
+        ) {
+            await db
+                .update(pushSubscriptions)
+                .set({
+                    userId: locals.user.id,
+                    p256dh: subscription.keys.p256dh,
+                    auth: subscription.keys.auth
+                })
+                .where(eq(pushSubscriptions.endpoint, subscription.endpoint));
         }
 
         return json({ success: true, message: '구독 성공' });
