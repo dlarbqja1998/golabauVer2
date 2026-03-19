@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ cookies, platform }) => {
     }
 
     const now = new Date().toISOString();
-    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
     if (activeRooms.length === 0) {
         const res = await db.execute(sql`
@@ -84,7 +84,7 @@ export const load: PageServerLoad = async ({ cookies, platform }) => {
         WHERE (r.creator_id = ${userId} OR req.requester_id = ${userId})
           AND (
               (r.status = 'OPEN' AND r.appointment_time > ${now}) OR
-              (r.status = 'MATCHED' AND r.bumped_at > ${thirtyMinsAgo})
+              (r.status = 'MATCHED' AND r.bumped_at > ${oneHourAgo})
           )
         ORDER BY r.bumped_at DESC
     `);

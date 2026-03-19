@@ -6,32 +6,53 @@
 
 	let { data } = $props();
 
+	type Room = {
+		id: number;
+		title: string;
+		appointmentTime: string;
+		restaurantName: string;
+		meetingType?: string;
+		genderCondition: string;
+		headcountCondition?: string | null;
+		status: string;
+		creatorGrade?: string | null;
+		creatorGender?: string | null;
+	};
+
+	const PREP_TAB = 'prep';
+	const DONE_TAB = 'done';
+	const tabItems = [
+		{ key: PREP_TAB, label: '준비' },
+		{ key: DONE_TAB, label: '내 방과 완료' }
+	] as const;
+
 	let user = $derived(data?.user);
-	let rooms = $derived(data?.rooms || []);
-	let myRooms = $derived(data?.myRooms || []);
+	let rooms = $derived((data?.rooms || []) as Room[]);
+	let myRooms = $derived((data?.myRooms || []) as Room[]);
+	let completedRoomCount = $derived(myRooms.filter((room) => room.status === 'MATCHED').length);
 
 	let isTestMode = $state(false);
-	let activeTab = $state('준비');
-    let toastMessage = $state('');
-    let toastTimeout: any;
+	let activeTab = $state<string>(PREP_TAB);
+	let toastMessage = $state('');
+	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    function showToast(msg: string) {
-        toastMessage = msg;
-        if (toastTimeout) clearTimeout(toastTimeout);
-        toastTimeout = setTimeout(() => { toastMessage = ''; }, 2500);
-    }
+	function showToast(msg: string) {
+		toastMessage = msg;
+		if (toastTimeout) clearTimeout(toastTimeout);
+		toastTimeout = setTimeout(() => {
+			toastMessage = '';
+		}, 2500);
+	}
 
-    $effect(() => {
-        const error = $page.url.searchParams.get('error');
-        if (error === 'forbidden') {
-            showToast('매칭이 완료되어 참여자만 들어갈 수 있어유! 🔒');
-            window.history.replaceState({}, '', '/meetup');
-        }
-    });
+	$effect(() => {
+		const error = $page.url.searchParams.get('error');
+		if (error === 'forbidden') {
+			showToast('매칭이 완료된 방은 참여자만 들어갈 수 있어요.');
+			window.history.replaceState({}, '', '/meetup');
+		}
+	});
 
-	let filteredRooms = $derived(
-		activeTab === '준비' ? rooms : myRooms
-	);
+	let filteredRooms = $derived(activeTab === PREP_TAB ? rooms : myRooms);
 
 	onMount(() => {
 		if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -72,7 +93,7 @@
 
 	{#if user?.role === 'admin'}
 		<div class="bg-gray-800 text-yellow-300 p-3 mx-4 mt-4 rounded-xl flex justify-between items-center shadow-md animate-fade-in">
-			<span class="text-xs font-bold font-['Jua']">👑 관리자 테스트 모드</span>
+			<span class="text-xs font-bold font-['Jua']">관리자 테스트 모드</span>
 			<label class="flex items-center gap-2 text-xs cursor-pointer font-bold">
 				<input type="checkbox" bind:checked={isTestMode} class="w-4 h-4 accent-[#8B0029]" />
 				참여자로 방 들어가기
@@ -81,21 +102,29 @@
 	{/if}
 
 	<div class="flex bg-white border-b border-gray-100 relative z-20 shadow-sm mt-2">
-		{#each ['준비', '내 방과 완료'] as tab}
+		{#each tabItems as tab, tabIndex}
 			<button
-				onclick={() => changeTab(tab)}
-				class="flex-1 py-4 flex flex-col sm:flex-row justify-center items-center gap-1 font-bold text-sm transition-colors relative {activeTab === tab
+				onclick={() => changeTab(tab.key)}
+				class="flex-1 py-4 flex flex-col sm:flex-row justify-center items-center gap-1 font-bold text-sm transition-colors relative {activeTab === tab.key
 					? 'text-[#8B0029]'
 					: 'text-gray-400 hover:bg-gray-50'}"
 			>
-				{#if tab === '준비'}
+				{#if tabIndex === 0}
 					<Users size={16} />
+					<span>{tab.label}</span>
 				{:else}
 					<User size={16} />
+					<div class="flex items-center gap-1.5">
+						<span>{tab.label}</span>
+						{#if completedRoomCount > 0}
+							<span class="min-w-5 h-5 px-1.5 rounded-full bg-[#8B0029] text-white text-[11px] font-bold leading-none flex items-center justify-center shadow-sm">
+								!
+							</span>
+						{/if}
+					</div>
 				{/if}
-				<span>{tab}</span>
 
-				{#if activeTab === tab}
+				{#if activeTab === tab.key}
 					<div
 						class="absolute bottom-0 left-0 w-full h-0.5 bg-[#8B0029]"
 						transition:fade={{ duration: 150 }}
@@ -108,16 +137,16 @@
 	<div class="px-5 mt-4 flex flex-col gap-3">
 		{#if filteredRooms.length === 0}
 			<div class="py-20 text-center flex flex-col items-center justify-center gap-2 animate-fade-in">
-				<div class="text-4xl mb-2">😢</div>
+				<div class="text-4xl mb-2">🥲</div>
 				<h3 class="font-bold text-gray-600 font-['Jua'] text-lg">
-                    {activeTab === '준비' ? '아직 모집 중인 방이 없어유' : '내 방이나 매칭된 방이 없어유'}
-                </h3>
+					{activeTab === PREP_TAB ? '아직 모집 중인 방이 없어요' : '내 방과 완료된 방이 없어요'}
+				</h3>
 				<p class="text-gray-400 text-sm font-['Noto_Sans_KR']">
-                    {#if activeTab === '준비'}
-					    우측 하단 버튼을 눌러<br />직접 첫 번째 방을 만들어 보셔유!
-                    {:else}
-                        새로운 방을 파거나 매칭에 참여해 보셔유!
-                    {/if}
+					{#if activeTab === PREP_TAB}
+						오른쪽 하단 버튼을 눌러<br />직접 첫 번째 방을 만들어 보세요
+					{:else}
+						새로운 방을 만들거나 매칭에 참여해 보세요
+					{/if}
 				</p>
 			</div>
 		{:else}
@@ -126,41 +155,39 @@
 					href="/meetup/{room.id}{isTestMode ? '?test=participant' : ''}"
 					class="relative block bg-white p-5 rounded-2xl shadow-sm border {room.status === 'MATCHED' ? 'border-[#8B0029]' : 'border-gray-100'} active:scale-[0.98] transition-transform animate-fade-in hover:border-red-100 overflow-hidden"
 				>
-                    {#if room.status === 'MATCHED'}
-                        <div class="absolute inset-0 bg-black/60 backdrop-blur-[1.5px] flex flex-col items-center justify-center z-10 transition-all">
-                            <span class="text-3xl mb-1">🔒</span>
-                            <span class="text-white font-bold font-['Jua'] text-lg drop-shadow-md tracking-wider text-yellow-300">매칭 성사 완료!</span>
-                        </div>
-                    {/if}
-                    <div class="{room.status === 'MATCHED' ? 'opacity-30 blur-[1px]' : ''}">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md flex items-center">
-                                <span>
-                                    {getGenderText(room.genderCondition)} {room.headcountCondition
-                                        ? `· ${room.headcountCondition}`
-                                        : ''}
-                                </span>
-                                {#if room.creatorGrade && room.creatorGender}
-                                    <span class="mx-1.5 text-gray-300 font-normal">|</span>
-                                    <span class="text-[#8B0029]">
-                                        {room.creatorGrade} {room.creatorGender === 'MALE' ? '남' : room.creatorGender === 'FEMALE' ? '여' : ''}
-                                    </span>
-                                {/if}
-                            </span>
-                            <span class="text-xs text-red-500 font-bold bg-red-50 px-2 py-1 rounded-md">
-                                {new Date(room.appointmentTime).toLocaleString('ko-KR', {
-                                    month: 'numeric',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
-                            </span>
-                        </div>
-                        <h2 class="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{room.title}</h2>
-                        <p class="text-sm text-gray-500 flex items-center gap-1 font-bold">
-                            📍 {room.restaurantName}
-                        </p>
-                    </div>
+					{#if room.status === 'MATCHED'}
+						<div class="absolute inset-0 bg-black/60 backdrop-blur-[1.5px] flex flex-col items-center justify-center z-10 transition-all">
+							<span class="text-3xl mb-1">🎉</span>
+							<span class="text-white font-bold font-['Jua'] text-lg drop-shadow-md tracking-wider text-yellow-300">매칭 성사 완료!</span>
+						</div>
+					{/if}
+					<div class="{room.status === 'MATCHED' ? 'opacity-30 blur-[1px]' : ''}">
+						<div class="flex justify-between items-start mb-2">
+							<span class="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md flex items-center">
+								<span>
+									{getGenderText(room.genderCondition)} {room.headcountCondition ? `· ${room.headcountCondition}` : ''}
+								</span>
+								{#if room.creatorGrade && room.creatorGender}
+									<span class="mx-1.5 text-gray-300 font-normal">|</span>
+									<span class="text-[#8B0029]">
+										{room.creatorGrade} {room.creatorGender === 'MALE' ? '남' : room.creatorGender === 'FEMALE' ? '여' : ''}
+									</span>
+								{/if}
+							</span>
+							<span class="text-xs text-red-500 font-bold bg-red-50 px-2 py-1 rounded-md">
+								{new Date(room.appointmentTime).toLocaleString('ko-KR', {
+									month: 'numeric',
+									day: 'numeric',
+									hour: '2-digit',
+									minute: '2-digit'
+								})}
+							</span>
+						</div>
+						<h2 class="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{room.title}</h2>
+						<p class="text-sm text-gray-500 flex items-center gap-1 font-bold">
+							📍 {room.restaurantName}
+						</p>
+					</div>
 				</a>
 			{/each}
 		{/if}

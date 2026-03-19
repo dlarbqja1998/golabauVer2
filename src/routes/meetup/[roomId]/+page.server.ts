@@ -9,9 +9,19 @@ import { redirect, fail } from '@sveltejs/kit';
 import { sendPushNotification } from '$lib/server/push';
 
 const LIST_CACHE_KEY = 'active_meetup_rooms';
+const MATCHED_ROOM_TTL_MS = 60 * 60 * 1000;
 
 function getRoomCacheKey(roomId: number) {
     return `meetup_room:${roomId}`;
+}
+
+function isExpiredMatchedRoom(status: string, matchedAt: string | null) {
+    if (status !== 'MATCHED' || !matchedAt) return false;
+
+    const matchedAtMs = new Date(matchedAt).getTime();
+    if (Number.isNaN(matchedAtMs)) return false;
+
+    return Date.now() - matchedAtMs >= MATCHED_ROOM_TTL_MS;
 }
 
 async function invalidateMeetupCaches(platform: App.Platform | undefined, roomId: number) {
@@ -40,6 +50,7 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
         id: number; creatorId: number; title: string; appointmentTime: string;
         restaurantId: number | null; restaurantName: string; meetingType: string; genderCondition: string;
         headcountCondition: string; contactType: string | null; contactId: string | null;
+        matchedAt: string | null;
         status: string; creatorNickname: string; creatorProfileImg: string | null;
         creatorGrade: string | null; creatorGender: string | null; creatorDepartment: string | null;
         appliedReq: { id: number; requesterId: number; status: string; nickname: string; department: string | null; grade: string | null; gender: string | null; contactType: string | null; } | null;
@@ -55,7 +66,7 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
             const roomResult = await db.execute(sql`
                 SELECT r.id, r.creator_id, r.title, r.appointment_time, r.restaurant_id, r.restaurant_name, 
                        r.meeting_type, r.gender_condition, r.headcount_condition, r.contact_type, 
-                       r.contact_id, r.status, 
+                       r.contact_id, r.status, r.bumped_at,
                        u.nickname AS creator_nickname, u.profile_img AS creator_profile_img,
                        u.grade AS creator_grade, u.gender AS creator_gender, u.department AS creator_department
                 FROM rooms r JOIN "user" u ON r.creator_id = u.id
@@ -110,6 +121,7 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
                 headcountCondition: String(rawRoom.headcount_condition), 
                 contactType: rawRoom.contact_type ? String(rawRoom.contact_type) : null,
                 contactId: rawRoom.contact_id ? String(rawRoom.contact_id) : null, 
+                matchedAt: rawRoom.bumped_at ? String(rawRoom.bumped_at) : null,
                 status: String(rawRoom.status), 
                 creatorNickname: String(rawRoom.creator_nickname), 
                 creatorProfileImg: rawRoom.creator_profile_img ? String(rawRoom.creator_profile_img) : null,
@@ -129,6 +141,11 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
 
     if (!payload) throw redirect(302, '/meetup?error=not_found');
 
+    if (isExpiredMatchedRoom(payload.status, payload.matchedAt)) {
+        await invalidateMeetupCaches(platform, roomId);
+        throw redirect(302, '/meetup?error=expired');
+    }
+
     const requesterId = payload.appliedReq?.requesterId ?? null;
     const isCreator = locals.user.id === payload.creatorId && !isTestMode;
     const isApplicant = requesterId === locals.user.id || isTestMode;
@@ -145,6 +162,7 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
         genderCondition: payload.genderCondition, headcountCondition: payload.headcountCondition,
         contactType: payload.contactType, // 연락처 종류(카카오/인스타)는 항상 표시
         contactId: canSeeContact ? payload.contactId : null,
+        matchedAt: payload.status === 'MATCHED' ? payload.matchedAt : null,
         status: payload.status, creatorNickname: payload.creatorNickname,
         creatorGrade: payload.creatorGrade, creatorGender: payload.creatorGender, creatorDepartment: payload.creatorDepartment
     };
