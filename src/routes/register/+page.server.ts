@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { deleteKVCache } from '$lib/server/cache';
 
 export const load: PageServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('session_id');
@@ -14,7 +15,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-    default: async ({ request, cookies }) => {
+    default: async ({ request, cookies, platform }) => {
         const sessionId = cookies.get('session_id');
         if (!sessionId) throw redirect(303, '/login');
 
@@ -40,6 +41,9 @@ export const actions: Actions = {
                 isOnboarded: true
             })
             .where(eq(users.id, parseInt(sessionId)));
+
+        // 🔥 KV 캐시 폭파! (회원가입 완료 시 불완전한 캐시 제거 → 다음 접속 때 최신 정보 캐싱)
+        await deleteKVCache(platform, `user:${sessionId}`);
 
         throw redirect(303, '/my');
     }

@@ -75,6 +75,13 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
         badge: user.badge,
         isOnboarded: user.isOnboarded,
         role: user.role,
+        // 🔥 만나볼텨? 필수정보 체크에 필요한 필드들!
+        college: user.college,
+        department: user.department,
+        grade: user.grade,
+        gender: user.gender,
+        kakaoId: user.kakaoId,
+        instaId: user.instaId,
     }, 3600);
 
     // ▼▼▼ [핵심 변경] 추가 정보 입력 안 했으면 납치! ▼▼▼

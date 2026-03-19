@@ -47,8 +47,23 @@ export const load: LayoutServerLoad = async ({ locals, cookies, platform }) => {
                         nickname: user.nickname,
                         profileImg: user.profileImg,
                     };
-                    // KV에 1시간(3600초) 캐싱
-                    await setKVCache(platform, KV_KEY, userData, 3600);
+                    // 🔥 KV에는 만나볼텨? 체크용 필드도 함께 저장!
+                    //    (+page.server.ts에서 이 캐시를 읽어 canUseMeetup 판정)
+                    await setKVCache(platform, KV_KEY, {
+                        id: user.id,
+                        nickname: user.nickname,
+                        email: user.email,
+                        profileImg: user.profileImg,
+                        badge: user.badge,
+                        isOnboarded: user.isOnboarded,
+                        role: user.role,
+                        college: user.college,
+                        department: user.department,
+                        grade: user.grade,
+                        gender: user.gender,
+                        kakaoId: user.kakaoId,
+                        instaId: user.instaId,
+                    }, 3600);
                 }
             } catch (e) {
                 console.error('[layout] KV 미스 후 DB 조회 에러:', e);
