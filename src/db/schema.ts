@@ -214,3 +214,12 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
     userAgent: text("user_agent"), // 어떤 기기/브라우저인지 식별용 (선택)
     createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
+
+// 5-3 누가 신청했는지 기록할 디비 업데이트
+export const roomRequests = pgTable("room_requests", {
+    id: serial("id").primaryKey(),
+    roomId: integer("room_id").notNull(),           // 어느 방에 신청했는지
+    requesterId: integer("requester_id").notNull(), // 신청한 사람의 유저 ID
+    status: text("status").default('PENDING'),      // 상태 (PENDING: 대기중, ACCEPTED: 수락됨, REJECTED: 거절됨)
+    createdAt: timestamp("created_at").defaultNow(),
+});

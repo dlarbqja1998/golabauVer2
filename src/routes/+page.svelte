@@ -10,6 +10,7 @@
     
     let categories = $derived(data?.maincategory || []);
     let user = $derived(data?.user);
+    let hasSession = $derived(Boolean(data?.hasSession));
     let canUseMeetup = $derived(data?.canUseMeetup || false); // 🔥 서버에서 받아온 이용 가능 여부
 
     // ▼▼▼ [토스트 알림 로직] ▼▼▼
@@ -105,7 +106,17 @@
         }
     });
 
+    function requireLogin() {
+        showToast('로그인이 필요합니다.');
+        setTimeout(() => goto('/login'), 1200);
+    }
+
     function handleContactClick() {
+        if (!hasSession) {
+            requireLogin();
+            return;
+        }
+
         isContactModalOpen = true;
     }
 
@@ -143,14 +154,22 @@
     }
 
     // ▼▼▼ [만나볼텨? 로직 - 로그인 및 정보 검사 추가] ▼▼▼
+    function handleShopClick() {
+        if (!hasSession) {
+            requireLogin();
+            return;
+        }
+
+        goto('/shop');
+    }
+
     function handleMeetupClick() {
         if (typeof window !== 'undefined' && window.posthog) {
             window.posthog.capture('clicked_meetup_entry_btn'); // 🚀 버튼 클릭 이벤트 전송
         }
         
-        if (!user) {
-            showToast('🚨 로그인 후 이용해주세요!');
-            setTimeout(() => goto('/login'), 1500);
+        if (!hasSession) {
+            requireLogin();
             return;
         }
 
@@ -195,17 +214,18 @@
     
     <header class="sticky top-0 z-20 w-full bg-white/90 backdrop-blur-sm border-b border-gray-50 px-4 py-3 flex justify-between items-center">
         <!-- 🛒 상점(Shop) 진입 버튼 (왼쪽) -->
-        <a 
-            href="/shop"
+        <button 
+            type="button"
             class="flex flex-col items-center justify-center p-1 text-[#8B0029] hover:bg-gray-100 transition-colors rounded-lg active:scale-95"
             aria-label="상점"
             onclick={() => {
                 if (typeof window !== 'undefined' && window.posthog) window.posthog.capture('clicked_shop_entry_btn');
+                handleShopClick();
             }}
         >
             <ShoppingCart size={22} class="mb-0.5" />
             <span class="text-[10px] font-bold font-['Jua']">포인트샵</span>
-        </a>
+        </button>
 
         <!-- 📬 문의하기 버튼 (오른쪽) -->
         <button 
