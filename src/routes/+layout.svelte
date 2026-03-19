@@ -1,11 +1,61 @@
-<script>
+<script lang="ts">
 	import './layout.css';
 	import { page } from '$app/stores';
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { PUBLIC_VITE_VAPID_PUBLIC_KEY } from '$env/static/public';
 
 	const APP_VERSION = '2.1.2';
+
+	function base64UrlToUint8Array(base64Url: string) {
+		const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
+		const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
+		const rawData = window.atob(base64);
+		const outputArray = new Uint8Array(rawData.length);
+
+		for (let i = 0; i < rawData.length; i += 1) {
+			outputArray[i] = rawData.charCodeAt(i);
+		}
+
+		return outputArray;
+	}
+
+	async function registerPushSubscription() {
+		if (!data?.user) return;
+		if (!PUBLIC_VITE_VAPID_PUBLIC_KEY) return;
+		if (typeof window === 'undefined' || !window.isSecureContext) return;
+		if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+		if (Notification.permission === 'denied') return;
+
+		const registration = await navigator.serviceWorker.ready;
+
+		let permission: NotificationPermission = Notification.permission;
+		if (permission === 'default') {
+			permission = await Notification.requestPermission();
+		}
+
+		if (permission !== 'granted') return;
+
+		let subscription = await registration.pushManager.getSubscription();
+		if (!subscription) {
+			subscription = await registration.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: base64UrlToUint8Array(PUBLIC_VITE_VAPID_PUBLIC_KEY)
+			});
+		}
+
+		await fetch('/api/push', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				subscription: subscription.toJSON(),
+				userAgent: navigator.userAgent
+			})
+		});
+	}
 
 	onMount(() => {
 		const lastVersion = localStorage.getItem('app_version');
@@ -24,6 +74,10 @@
 			location.reload();
 			return;
 		}
+
+		registerPushSubscription().catch((error) => {
+			console.error('Push registration failed:', error);
+		});
 	});
 
 	let { data, children } = $props();

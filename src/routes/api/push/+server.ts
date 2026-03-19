@@ -20,6 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         const { subscription } = (await request.json()) as {
             subscription?: PushSubscriptionPayload;
+            userAgent?: string;
         };
 
         if (
