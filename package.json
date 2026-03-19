@@ -28,7 +28,6 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/node": "^22",
-		"@types/web-push": "^3.6.4",
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"drizzle-kit": "^0.31.8",
 		"drizzle-orm": "^0.45.0",
@@ -59,7 +58,6 @@
 		"@tiptap/starter-kit": "^3.16.0",
 		"cheerio": "^1.2.0",
 		"dotenv": "^17.3.1",
-		"lucide-svelte": "^0.562.0",
-		"web-push": "^3.6.7"
+		"lucide-svelte": "^0.562.0"
 	}
 }
