@@ -3,14 +3,15 @@ import { db } from '$lib/server/db';
 import { rooms, users, pointLogs } from '../../db/schema';
 import { eq, and, desc, gt, sql } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
+import { getUserIdFromSessionToken } from '$lib/server/user';
 
 export const load: PageServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('session_id');
     if (!sessionId) throw redirect(302, '/login');
 
-    const userId = parseInt(sessionId);
-    
-    // Get user points
+    const userId = getUserIdFromSessionToken(sessionId);
+    if (!userId) throw redirect(302, '/login');
+
     const currentUser = await db.query.users.findFirst({
         where: eq(users.id, userId),
         columns: { id: true, nickname: true, points: true }
@@ -18,13 +19,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
     if (!currentUser) throw redirect(302, '/login');
 
-    // Get my OPEN rooms
     const myRooms = await db.query.rooms.findMany({
-        where: and(
-            eq(rooms.creatorId, userId),
-            eq(rooms.status, 'OPEN'),
-            gt(rooms.appointmentTime, new Date().toISOString())
-        ),
+        where: and(eq(rooms.creatorId, userId), eq(rooms.status, 'OPEN'), gt(rooms.appointmentTime, new Date().toISOString())),
         orderBy: [desc(rooms.createdAt)],
         columns: { id: true, title: true, bumpedAt: true, appointmentTime: true }
     });
@@ -36,15 +32,16 @@ export const actions: Actions = {
     bump: async ({ request, cookies }) => {
         const sessionId = cookies.get('session_id');
         if (!sessionId) return fail(401, { message: '로그인이 필요합니다.' });
-        
-        const userId = parseInt(sessionId);
+
+        const userId = getUserIdFromSessionToken(sessionId);
+        if (!userId) return fail(401, { message: '로그인이 필요합니다.' });
+
         const data = await request.formData();
         const roomId = parseInt(data.get('roomId') as string);
-        
+
         if (!roomId) return fail(400, { message: '방이 선택되지 않았습니다.' });
 
         try {
-            // 1. 유저 보유 포인트 확인 (원본 db 사용)
             const currentUser = await db.query.users.findFirst({
                 where: eq(users.id, userId),
                 columns: { points: true }
@@ -54,35 +51,27 @@ export const actions: Actions = {
                 throw new Error('포인트가 부족합니다!');
             }
 
-            // 2. 방 유효성 검사
             const room = await db.query.rooms.findFirst({
                 where: eq(rooms.id, roomId)
             });
 
             if (!room || room.creatorId !== userId || room.status !== 'OPEN') {
-                throw new Error('선택된 방이 유효하지 않습니다.');
+                throw new Error('선택한 방이 유효하지 않습니다.');
             }
 
             if (new Date(room.appointmentTime) <= new Date()) {
                 throw new Error('이미 만료된 방입니다.');
             }
 
-            // 3. 포인트 삭감 및 기록 반영 (트랜잭션 대신 순차 처리)
-            await db.update(users)
-                .set({ points: sql`${users.points} - 50` })
-                .where(eq(users.id, userId));
+            await db.update(users).set({ points: sql`${users.points} - 50` }).where(eq(users.id, userId));
 
-            // 에러 방지 차원에서 비동기로 순차 진행
             await db.insert(pointLogs).values({
-                userId: userId,
+                userId,
                 amount: -50,
                 reason: '매칭가속티켓 사용'
             });
 
-            // 4. 끌올 시간 갱신
-            await db.update(rooms)
-                .set({ bumpedAt: new Date().toISOString() })
-                .where(eq(rooms.id, roomId));
+            await db.update(rooms).set({ bumpedAt: new Date().toISOString() }).where(eq(rooms.id, roomId));
 
             return { success: true };
         } catch (e: any) {

@@ -6,7 +6,7 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
-import { getUserBySessionId, isMeetupProfileComplete } from '$lib/server/user';
+import { getUserBySessionId, getUserIdFromSessionToken, isMeetupProfileComplete } from '$lib/server/user';
 
 const CACHE_KEY = 'active_meetup_rooms';
 
@@ -16,10 +16,10 @@ export const load: PageServerLoad = async ({ cookies, platform }) => {
         throw redirect(302, '/login');
     }
 
-    const userId = parseInt(sessionId, 10);
+    const userId = getUserIdFromSessionToken(sessionId);
     const currentUser = await getUserBySessionId(platform, sessionId);
 
-    if (!currentUser) {
+    if (!currentUser || !userId) {
         throw redirect(302, '/login');
     }
 

@@ -2,11 +2,55 @@ import { db } from '$lib/server/db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { getKVCache, setKVCache } from '$lib/server/cache';
+import { env } from '$env/dynamic/private';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type CachedUser = typeof users.$inferSelect;
 
-export function getUserCacheKey(sessionId: string) {
-    return `user:${sessionId}`;
+function getSessionSecret() {
+    const secret = env.SESSION_SECRET || env.AUTH_KAKAO_SECRET;
+    if (!secret) {
+        throw new Error('SESSION_SECRET or AUTH_KAKAO_SECRET is required');
+    }
+
+    return secret;
+}
+
+function signSessionValue(value: string) {
+    return createHmac('sha256', getSessionSecret()).update(value).digest('hex');
+}
+
+export function createSessionToken(userId: number) {
+    const value = String(userId);
+    const signature = signSessionValue(value);
+    return `${value}.${signature}`;
+}
+
+export function getUserIdFromSessionToken(sessionToken: string) {
+    const [value, signature] = sessionToken.split('.');
+    if (!value || !signature) {
+        return null;
+    }
+
+    const expectedSignature = signSessionValue(value);
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    if (signatureBuffer.length !== expectedBuffer.length) {
+        return null;
+    }
+
+    const isValid = timingSafeEqual(signatureBuffer, expectedBuffer);
+    if (!isValid) {
+        return null;
+    }
+
+    const userId = Number.parseInt(value, 10);
+    return Number.isNaN(userId) ? null : userId;
+}
+
+export function getUserCacheKey(userId: number) {
+    return `user:${userId}`;
 }
 
 export function isMeetupProfileComplete(
@@ -24,16 +68,16 @@ export async function getUserBySessionId(
     sessionId: string,
     expirationTtl = 3600
 ): Promise<CachedUser | null> {
-    const cacheKey = getUserCacheKey(sessionId);
+    const userId = getUserIdFromSessionToken(sessionId);
+    if (!userId) {
+        return null;
+    }
+
+    const cacheKey = getUserCacheKey(userId);
     const cachedUser = await getKVCache<CachedUser>(platform, cacheKey);
 
     if (cachedUser) {
         return cachedUser;
-    }
-
-    const userId = Number.parseInt(sessionId, 10);
-    if (Number.isNaN(userId)) {
-        return null;
     }
 
     const user = await db.query.users.findFirst({
