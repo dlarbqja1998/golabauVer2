@@ -2,7 +2,6 @@
 	import './layout.css';
 	import { page } from '$app/stores';
 	import { Home, Search, User, MessageCircle } from 'lucide-svelte';
-	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { PUBLIC_VITE_VAPID_PUBLIC_KEY } from '$env/static/public';
 
@@ -143,12 +142,6 @@
 	});
 
 	let { data, children } = $props();
-
-	afterNavigate(() => {
-		if (typeof window !== 'undefined' && window.posthog) {
-			window.posthog.capture('$pageview');
-		}
-	});
 
 	$effect(() => {
 		console.log('PostHog 체크! 현재 유저 데이터:', data?.user);

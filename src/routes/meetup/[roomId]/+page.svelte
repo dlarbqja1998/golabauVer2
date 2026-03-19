@@ -324,7 +324,7 @@
 
 	<div class="fixed left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-sm border-t border-red-50 p-4 z-40" style="bottom: calc(64px + env(safe-area-inset-bottom));">
 		{#if isCreator && !isMatchComplete}
-			<button type="button" onclick={() => { if (typeof window !== 'undefined' && window.posthog) window.posthog.capture('click_delete_meetup_room_modal'); showConfirmDelete = true; }} disabled={isDeleting} class="w-full py-3 bg-red-50 text-red-500 font-bold rounded-xl text-sm shadow-sm active:scale-95">방 폭파 버튼</button>
+			<button type="button" onclick={() => { showConfirmDelete = true; }} disabled={isDeleting} class="w-full py-3 bg-red-50 text-red-500 font-bold rounded-xl text-sm shadow-sm active:scale-95">방 폭파 버튼</button>
 		{:else}
 			<button onclick={() => goto('/meetup')} class="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl text-sm shadow-sm active:scale-95">리스트로 나가기</button>
 		{/if}

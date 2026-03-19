@@ -82,6 +82,9 @@
     }
 
     onMount(() => {
+        if (typeof window !== 'undefined' && window.posthog) {
+            window.posthog.capture('view_home');
+        }
         updateBusTime();
         const interval = setInterval(updateBusTime, 60000);
         return () => clearInterval(interval);
@@ -270,7 +273,6 @@
             target="_blank"
             rel="noopener noreferrer"
             class="block w-full bg-white border border-gray-100 rounded-xl p-5 shadow-sm active:scale-[0.98] transition-transform text-left group"
-            onclick={() => { if (typeof window !== 'undefined' && window.posthog) window.posthog.capture('clicked_shuttle_bus_info'); }}
         >
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-bold text-lg text-gray-800 flex items-center gap-2 font-['Jua']">

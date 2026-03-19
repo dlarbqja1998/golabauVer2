@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { ChevronLeft, Plus, Users, User, ShoppingCart } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { page } from '$app/stores';
@@ -54,23 +53,8 @@
 
 	let filteredRooms = $derived(activeTab === PREP_TAB ? rooms : myRooms);
 
-	onMount(() => {
-		if (typeof window !== 'undefined' && 'Notification' in window) {
-			if (Notification.permission === 'default') {
-				Notification.requestPermission().then((permission) => {
-					if (permission === 'granted' && window.posthog) {
-						window.posthog.capture('completed_push_onboarding');
-					}
-				});
-			}
-		}
-	});
-
 	function changeTab(tab: string) {
 		activeTab = tab;
-		if (typeof window !== 'undefined' && window.posthog) {
-			window.posthog.capture('meetup_tab_changed', { tab_name: tab });
-		}
 	}
 
 	function getGenderText(condition: string) {
@@ -98,7 +82,7 @@
 			<ChevronLeft size={24} />
 		</a>
 		<h1 class="text-xl font-bold font-['Jua'] text-[#8B0029]">만나볼텨?</h1>
-		<a href="/shop" class="p-2 -mr-2 text-[#8B0029] active:scale-95 transition-transform" onclick={() => typeof window !== 'undefined' && window.posthog && window.posthog.capture('clicked_shop_from_meetup')}>
+		<a href="/shop" class="p-2 -mr-2 text-[#8B0029] active:scale-95 transition-transform">
 			<ShoppingCart size={24} />
 		</a>
 	</header>

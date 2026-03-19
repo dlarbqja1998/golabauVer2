@@ -57,6 +57,45 @@
         }
         return pages;
     });
+
+    let lastListViewKey = '';
+
+    $effect(() => {
+        const currentKey = `${data.category}:${data.currentZone}:${sortOption}:${data.pagination.page}`;
+        if (typeof window !== 'undefined' && window.posthog && lastListViewKey !== currentKey) {
+            lastListViewKey = currentKey;
+            window.posthog.capture('view_category_list', {
+                category: data.category,
+                zone: data.currentZone,
+                sort: sortOption,
+                page: data.pagination.page,
+                result_count: displayRestaurants.length
+            });
+            window.posthog.capture('view_restaurant_list', {
+                category: data.category,
+                zone: data.currentZone,
+                sort: sortOption,
+                source: 'category_list',
+                page: data.pagination.page,
+                result_count: displayRestaurants.length
+            });
+        }
+    });
+
+    function trackRestaurantCardClick(restaurant, index) {
+        if (typeof window !== 'undefined' && window.posthog) {
+            window.posthog.capture('click_restaurant_card', {
+                restaurantId: restaurant.id,
+                restaurantName: restaurant.name,
+                category: data.category,
+                zone: restaurant.zone || data.currentZone,
+                source: 'category_list',
+                sort: sortOption,
+                rank: index + 1,
+                page: data.pagination.page
+            });
+        }
+    }
 </script>
 
 <div class="flex flex-col w-full min-h-screen bg-[#F8F9FA] max-w-md mx-auto pb-24" onclick={() => isSortOpen = false}>
@@ -107,8 +146,8 @@
 
     <div class="flex flex-col p-4 gap-4">
         {#if displayRestaurants.length > 0}
-            {#each displayRestaurants as restaurant (restaurant.id)}
-                <a href="/restaurant/{restaurant.id}" class="group block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.99] transition-all">
+            {#each displayRestaurants as restaurant, index (restaurant.id)}
+                <a href="/restaurant/{restaurant.id}" onclick={() => trackRestaurantCardClick(restaurant, index)} class="group block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.99] transition-all">
                     <div class="flex gap-4 items-start">
                         <div class="w-20 h-20 rounded-xl bg-gray-50 flex-shrink-0 flex items-center justify-center border border-gray-100">
                             <img src={getCategoryIconPath(data.category)} alt={restaurant.name} class="w-10 h-10 object-contain opacity-80" />

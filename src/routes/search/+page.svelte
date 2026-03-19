@@ -30,6 +30,45 @@
 			});
 		}
 	});
+
+	let lastSearchViewKey = '';
+
+	$effect(() => {
+		const currentKey = `${query}:${sortOption}:${sortedRestaurants.length}`;
+		if (typeof window !== 'undefined' && window.posthog && query && lastSearchViewKey !== currentKey) {
+			lastSearchViewKey = currentKey;
+			window.posthog.capture('view_restaurant_list', {
+				source: 'search_results',
+				query,
+				sort: sortOption,
+				result_count: sortedRestaurants.length
+			});
+		}
+	});
+
+	function trackSearchResultClick(restaurant, index) {
+		if (typeof window !== 'undefined' && window.posthog) {
+			window.posthog.capture('click_search_result_restaurant', {
+				restaurantId: restaurant.id,
+				restaurantName: restaurant.name,
+				category: restaurant.mainCategory,
+				query,
+				rank: index + 1,
+				sort: sortOption,
+				source: 'search_results'
+			});
+			window.posthog.capture('click_restaurant_card', {
+				restaurantId: restaurant.id,
+				restaurantName: restaurant.name,
+				category: restaurant.mainCategory,
+				zone: restaurant.zone || null,
+				source: 'search_results',
+				sort: sortOption,
+				query,
+				rank: index + 1
+			});
+		}
+	}
 </script>
 
 <div class="flex flex-col w-full min-h-screen bg-[#F8F9FA] max-w-md mx-auto pb-24">
@@ -82,8 +121,8 @@
 			</div>
 
 			{#if sortedRestaurants.length > 0}
-				{#each sortedRestaurants as restaurant (restaurant.id)}
-					<a href="/restaurant/{restaurant.id}" class="group block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.99] transition-all cursor-pointer hover:border-blue-200">
+				{#each sortedRestaurants as restaurant, index (restaurant.id)}
+					<a href="/restaurant/{restaurant.id}" onclick={() => trackSearchResultClick(restaurant, index)} class="group block bg-white p-4 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.99] transition-all cursor-pointer hover:border-blue-200">
 						<div class="flex gap-4 items-start">
 							<div class="w-16 h-16 rounded-xl bg-gray-50 flex-shrink-0 flex items-center justify-center border border-gray-100 group-hover:bg-blue-50 transition-colors">
 								<img src={getCategoryIconPath(restaurant.mainCategory)} alt={restaurant.name} class="w-8 h-8 object-contain opacity-80" />
