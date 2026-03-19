@@ -78,6 +78,18 @@
 		if (condition === 'FEMALE') return '여자만';
 		return '성별무관';
 	}
+	function trackRoomClick(room: Room) {
+		if (typeof window !== 'undefined' && window.posthog) {
+			window.posthog.capture('click_meetup_room_card', {
+				roomId: room.id,
+				status: room.status,
+				meetingType: room.meetingType || null,
+				headcountCondition: room.headcountCondition || null,
+				genderCondition: room.genderCondition,
+				tab_name: activeTab
+			});
+		}
+	}
 </script>
 
 <div class="flex flex-col w-full min-h-screen bg-[#F8F9FA] max-w-md mx-auto relative pb-24 overflow-x-hidden">
@@ -153,6 +165,7 @@
 			{#each filteredRooms as room}
 				<a
 					href="/meetup/{room.id}{isTestMode ? '?test=participant' : ''}"
+					onclick={() => trackRoomClick(room)}
 					class="relative block bg-white p-5 rounded-2xl shadow-sm border {room.status === 'MATCHED' ? 'border-[#8B0029]' : 'border-gray-100'} active:scale-[0.98] transition-transform animate-fade-in hover:border-red-100 overflow-hidden"
 				>
 					{#if room.status === 'MATCHED'}

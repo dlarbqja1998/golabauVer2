@@ -142,6 +142,14 @@
                     window.posthog.capture('created_meetup_room_success', { meetingType });
                 }
             } else if (result.type === 'failure') {
+                if (typeof window !== 'undefined' && window.posthog) {
+                    window.posthog.capture('create_meetup_room_fail', {
+                        meetingType,
+                        headcountCondition,
+                        reason: result.data?.message || 'unknown',
+                        selected_restaurant: selectedRestaurant.name || null
+                    });
+                }
                 alert(result.data?.message || '방 생성에 실패했습니다.');
             }
             update();

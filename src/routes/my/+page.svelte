@@ -33,9 +33,20 @@
     // 🔥 [입구컷] 만나볼텨?에서 쫓겨나서 온 경우 경고창 + 폼 자동 열기
     $effect(() => {
         if ($page.url.searchParams.get('error') === 'meetup_profile') {
+            if (typeof window !== 'undefined' && window.posthog) {
+                window.posthog.capture('blocked_meetup_by_incomplete_profile', {
+                    missing_kakao: !user.kakaoId,
+                    missing_insta: !user.instaId,
+                    missing_gender: !user.gender,
+                    missing_grade: !user.grade,
+                    missing_department: !user.department,
+                    missing_college: !user.college
+                });
+            }
             showToast('🚨 만나볼텨? 이용을 위해 단과대/학과 및 연락처를 입력해주세요!');
             editCollege = user.college || '';
             isEditing = true;
+            window.history.replaceState({}, '', '/my');
         } else if (form?.error || form?.message) {
             showToast(`⚠️ ${form.message || '오류가 발생했습니다.'}`);
         }

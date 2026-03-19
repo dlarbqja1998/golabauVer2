@@ -21,12 +21,49 @@
 		return outputArray;
 	}
 
+	function capturePushSubscriptionFailure(reason: string, errorName?: string) {
+		if (typeof window === 'undefined' || !window.posthog) return;
+
+		window.posthog.capture('push_subscription_fail', {
+			reason,
+			error_name: errorName || null,
+			permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+			is_secure_context: typeof window !== 'undefined' ? window.isSecureContext : false,
+			platform: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+			is_pwa:
+				typeof window !== 'undefined'
+					? window.matchMedia('(display-mode: standalone)').matches ||
+						(window.navigator as Navigator & { standalone?: boolean }).standalone === true
+					: false
+		});
+	}
+
 	async function registerPushSubscription() {
 		if (!data?.user) return;
-		if (!PUBLIC_VITE_VAPID_PUBLIC_KEY) return;
-		if (typeof window === 'undefined' || !window.isSecureContext) return;
-		if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
-		if (Notification.permission === 'denied') return;
+		if (!PUBLIC_VITE_VAPID_PUBLIC_KEY) {
+			capturePushSubscriptionFailure('missing_vapid_public_key');
+			return;
+		}
+		if (typeof window === 'undefined' || !window.isSecureContext) {
+			capturePushSubscriptionFailure('insecure_context');
+			return;
+		}
+		if (!('serviceWorker' in navigator)) {
+			capturePushSubscriptionFailure('service_worker_unsupported');
+			return;
+		}
+		if (!('PushManager' in window)) {
+			capturePushSubscriptionFailure('push_manager_unsupported');
+			return;
+		}
+		if (!('Notification' in window)) {
+			capturePushSubscriptionFailure('notification_unsupported');
+			return;
+		}
+		if (Notification.permission === 'denied') {
+			capturePushSubscriptionFailure('permission_denied');
+			return;
+		}
 
 		const registration = await navigator.serviceWorker.ready;
 
@@ -35,17 +72,26 @@
 			permission = await Notification.requestPermission();
 		}
 
-		if (permission !== 'granted') return;
+		if (permission !== 'granted') {
+			capturePushSubscriptionFailure('permission_not_granted');
+			return;
+		}
 
 		let subscription = await registration.pushManager.getSubscription();
 		if (!subscription) {
-			subscription = await registration.pushManager.subscribe({
-				userVisibleOnly: true,
-				applicationServerKey: base64UrlToUint8Array(PUBLIC_VITE_VAPID_PUBLIC_KEY)
-			});
+			try {
+				subscription = await registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey: base64UrlToUint8Array(PUBLIC_VITE_VAPID_PUBLIC_KEY)
+				});
+			} catch (error) {
+				const typedError = error as Error;
+				capturePushSubscriptionFailure('subscribe_failed', typedError.name);
+				throw error;
+			}
 		}
 
-		await fetch('/api/push', {
+		const response = await fetch('/api/push', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -55,6 +101,22 @@
 				userAgent: navigator.userAgent
 			})
 		});
+
+		if (!response.ok) {
+			capturePushSubscriptionFailure('save_subscription_failed');
+			return;
+		}
+
+		if (typeof window !== 'undefined' && window.posthog) {
+			window.posthog.capture('push_subscription_success', {
+				permission,
+				is_secure_context: window.isSecureContext,
+				platform: navigator.userAgent,
+				is_pwa:
+					window.matchMedia('(display-mode: standalone)').matches ||
+					(window.navigator as Navigator & { standalone?: boolean }).standalone === true
+			});
+		}
 	}
 
 	onMount(() => {

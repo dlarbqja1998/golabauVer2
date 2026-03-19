@@ -7,6 +7,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import { sendPushNotification } from '$lib/server/push';
+import { captureServerEvent } from '$lib/server/posthog';
 
 const LIST_CACHE_KEY = 'active_meetup_rooms';
 const MATCHED_ROOM_TTL_MS = 60 * 60 * 1000;
@@ -271,7 +272,16 @@ export const actions: Actions = {
             }
 
             await db.execute(sql`UPDATE room_requests SET status = ${newStatus} WHERE id = ${req.id}`);
-            if (isMatchComplete) await db.execute(sql`UPDATE rooms SET status = 'MATCHED', bumped_at = NOW() WHERE id = ${roomId}`);
+            if (isMatchComplete) {
+                await db.execute(sql`UPDATE rooms SET status = 'MATCHED', bumped_at = NOW() WHERE id = ${roomId}`);
+                void captureServerEvent('meetup_match_completed', String(room.creator_id), {
+                    roomId,
+                    meetingType: room.meeting_type ?? null,
+                    creatorId: Number(room.creator_id),
+                    requesterId: Number(req.requester_id),
+                    headcountCondition: room.headcount_condition ?? null
+                });
+            }
             
             await invalidateMeetupCaches(platform, roomId);
 
