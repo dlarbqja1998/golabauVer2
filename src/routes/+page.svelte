@@ -2,7 +2,7 @@
     import { getCategoryIconPath } from '$lib/data/categoryIcons.js';
     import { getTodaySchedule } from '$lib/data/busSchedule'; 
     import { onMount } from 'svelte';
-    import { X, Mail, Send, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-svelte';
+    import { X, Mail, Send, ChevronDown, ChevronUp, ShoppingCart, Bell } from 'lucide-svelte';
     import { slide, fly } from 'svelte/transition';
     import { goto } from '$app/navigation';
 
@@ -11,6 +11,7 @@
     let categories = $derived(data?.maincategory || []);
     let user = $derived(data?.user);
     let hasSession = $derived(Boolean(data?.hasSession));
+    let hasImportantNotice = $derived(Boolean(data?.hasImportantNotice));
     let canUseMeetup = $derived(data?.canUseMeetup || false); // 🔥 서버에서 받아온 이용 가능 여부
 
     // ▼▼▼ [토스트 알림 로직] ▼▼▼
@@ -99,6 +100,23 @@
 
     const contactCategories = ['맛집 추가', '정보 수정', '기능 제안', '버그 신고', '기타'];
 
+    let activePolicyModal = $state('');
+
+    const policyContents = {
+        terms: {
+            title: '이용약관',
+            content: `골라바유 이용약관\n\n1. 골라바유는 맛집 탐색, 리뷰, 만나볼텨?, 포인트샵 기능을 제공하는 서비스입니다.\n2. 이용자는 서비스 내 정보와 기능을 정상적인 목적 범위에서 이용해야 합니다.\n3. 욕설, 허위 정보 작성, 타인에게 불쾌감을 주는 행위는 제한될 수 있습니다.\n4. 운영상 필요할 경우 일부 기능이나 정책은 사전 고지 후 변경될 수 있습니다.\n5. 서비스 이용 중 문제가 발생하면 문의하기를 통해 접수해 주시기 바랍니다.`
+        },
+        privacy: {
+            title: '개인정보처리방침',
+            content: `개인정보처리방침\n\n1. 골라바유는 로그인, 프로필 설정, 만나볼텨? 이용 과정에서 필요한 최소한의 정보를 수집할 수 있습니다.\n2. 수집된 정보는 서비스 운영, 이용자 식별, 기능 제공, 문의 대응 목적으로만 사용됩니다.\n3. 연락처 정보는 만나볼텨? 기능에서 필요한 범위 안에서만 사용됩니다.\n4. 법령상 요구가 있는 경우를 제외하고, 수집 목적 외 용도로 개인정보를 사용하지 않습니다.\n5. 개인정보 관련 문의는 문의하기를 통해 접수해 주시기 바랍니다.`
+        },
+        policy: {
+            title: '운영정책',
+            content: `운영정책\n\n1. 골라바유는 서비스 내 안전한 이용 환경 유지를 최우선으로 합니다.\n2. 반복적인 허위 리뷰, 노쇼, 비매너 행위, 불쾌한 표현은 운영 정책에 따라 제재될 수 있습니다.\n3. 만나볼텨? 관련 신고나 문의는 확인 후 순차적으로 대응합니다.\n4. 포인트샵과 서비스 기능은 운영 상황에 따라 조건이나 제공 방식이 조정될 수 있습니다.\n5. 중요한 운영 변경 사항은 공지사항을 통해 안내합니다.`
+        }
+    };
+
     $effect(() => {
         if (typeof window !== 'undefined') {
             if (isContactModalOpen || isBusModalOpen) {
@@ -121,6 +139,24 @@
         }
 
         isContactModalOpen = true;
+    }
+
+    function handleNoticeClick() {
+        if (typeof window !== 'undefined' && window.posthog) {
+            window.posthog.capture('clicked_notice_btn', {
+                has_important_notice: hasImportantNotice
+            });
+        }
+
+        goto('/notices');
+    }
+
+    function openPolicyModal(policyKey) {
+        activePolicyModal = policyKey;
+    }
+
+    function closePolicyModal() {
+        activePolicyModal = '';
     }
 
     async function sendInquiry() {
@@ -231,6 +267,21 @@
         </button>
 
         <!-- 📬 문의하기 버튼 (오른쪽) -->
+        <button
+            type="button"
+            onclick={handleNoticeClick}
+            class="relative ml-auto flex flex-col items-center justify-center p-1 text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100 active:scale-95"
+            aria-label="공지사항"
+        >
+            <Bell size={22} class="mb-0.5" />
+            <span class="text-[10px] font-bold font-['Jua']">공지사항</span>
+            {#if hasImportantNotice}
+                <span class="absolute top-0 right-0 min-w-4 h-4 px-1 rounded-full bg-[#E51937] text-white text-[10px] font-bold leading-none flex items-center justify-center shadow-sm">
+                    !
+                </span>
+            {/if}
+        </button>
+
         <button 
             onclick={() => {
                 handleContactClick();
@@ -411,6 +462,24 @@
         </div>
     </div>
 
+    <footer class="w-full mt-auto px-4 pb-36">
+        <div class="rounded-[28px] border border-[#8B0029]/10 bg-gradient-to-b from-[#fff7f8] to-[#fff1f3] px-5 py-6 text-center shadow-[0_8px_30px_rgba(139,0,41,0.06)]">
+            <div class="text-[#8B0029] font-['Jua'] text-2xl">골라바유</div>
+
+            <div class="mt-5 flex items-center justify-center gap-3 text-sm font-bold text-[#8B0029]/75">
+                <button type="button" class="transition-colors hover:text-[#8B0029]" onclick={() => openPolicyModal('terms')}>이용약관</button>
+                <span class="text-[#8B0029]/25">|</span>
+                <button type="button" class="transition-colors hover:text-[#8B0029]" onclick={() => openPolicyModal('privacy')}>개인정보처리방침</button>
+                <span class="text-[#8B0029]/25">|</span>
+                <button type="button" class="transition-colors hover:text-[#8B0029]" onclick={() => openPolicyModal('policy')}>운영정책</button>
+            </div>
+
+            <div class="mt-5 text-xs font-medium tracking-[0.18em] text-[#8B0029]/45">
+                © 2026 GOLABAYU. ALL RIGHTS RESERVED.
+            </div>
+        </div>
+    </footer>
+
     {#if isContactModalOpen}
         <div class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center sm:p-4" onclick={() => isContactModalOpen = false}>
             <div 
@@ -463,6 +532,25 @@
                         <Send size={20} /> 전송하기
                     {/if}
                 </button>
+            </div>
+        </div>
+    {/if}
+
+    {#if activePolicyModal}
+        <div class="fixed inset-0 bg-black/55 z-[9999] flex items-end sm:items-center justify-center sm:p-4" onclick={closePolicyModal}>
+            <div
+                class="bg-white w-full max-w-sm sm:rounded-2xl rounded-t-2xl p-6 shadow-2xl max-h-[80dvh] overflow-y-auto flex flex-col border border-[#8B0029]/10"
+                onclick={(e) => e.stopPropagation()}
+            >
+                <div class="flex justify-between items-center mb-5 shrink-0">
+                    <h3 class="font-bold text-xl text-[#8B0029] font-['Jua']">{policyContents[activePolicyModal].title}</h3>
+                    <button onclick={closePolicyModal} class="text-gray-400 hover:text-black">
+                        <X size={24} />
+                    </button>
+                </div>
+                <div class="rounded-2xl bg-[#fff7f8] border border-[#8B0029]/10 px-4 py-4 text-sm leading-7 text-gray-700 whitespace-pre-wrap">
+                    {policyContents[activePolicyModal].content}
+                </div>
             </div>
         </div>
     {/if}

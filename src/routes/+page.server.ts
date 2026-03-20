@@ -6,6 +6,7 @@ import type { PageServerLoad } from './$types';
 import { getCafeteriaMenu } from '$lib/server/scraper';
 import { getKVCache, setKVCache } from '$lib/server/cache';
 import { getUserBySessionId, isMeetupProfileComplete } from '$lib/server/user';
+import { hasPinnedVisibleNotices } from '$lib/data/notices';
 
 export const load: PageServerLoad = async ({ cookies, platform, setHeaders }) => {
     setHeaders({
@@ -71,6 +72,7 @@ export const load: PageServerLoad = async ({ cookies, platform, setHeaders }) =>
         maincategory,
         todayMenu,
         restaurants: [],
+        hasImportantNotice: hasPinnedVisibleNotices(),
         user: currentUser
             ? {
                   nickname: currentUser.nickname,
