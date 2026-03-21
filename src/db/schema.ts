@@ -1,4 +1,4 @@
-import { pgTable, foreignKey, bigserial, bigint, varchar, timestamp, text, doublePrecision, integer, json, real, check, serial, boolean } from "drizzle-orm/pg-core";
+import { pgTable, foreignKey, bigserial, bigint, varchar, timestamp, text, doublePrecision, integer, json, real, check, serial, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // =========================================================
@@ -222,4 +222,6 @@ export const roomRequests = pgTable("room_requests", {
     requesterId: integer("requester_id").notNull(), // 신청한 사람의 유저 ID
     status: text("status").default('PENDING'),      // 상태 (PENDING: 대기중, ACCEPTED: 수락됨, REJECTED: 거절됨)
     createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+    uniqueIndex("room_requests_room_id_unique").on(table.roomId),
+]);

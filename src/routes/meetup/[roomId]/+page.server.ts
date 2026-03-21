@@ -206,14 +206,15 @@ export const actions: Actions = {
             if (!room || room.status !== 'OPEN') return fail(404, { message: '참가할 수 없는 방입니다.' });
             if (Number(room.creator_id) === locals.user.id) return fail(400, { message: '본인 방에는 참가 불가!' });
 
-            const existReq = await db.execute(sql`SELECT id FROM room_requests WHERE room_id = ${roomId} LIMIT 1`);
-            if (existReq.rows.length > 0) return fail(400, { message: '이미 참가자가 있습니다!' });
 
             await db.execute(sql`INSERT INTO room_requests (room_id, requester_id, status) VALUES (${roomId}, ${locals.user.id}, 'PENDING')`);
             await invalidateMeetupCaches(platform, roomId);
 
             return { success: true, message: '참가 완료!' };
         } catch (error) {
+            if ((error as { code?: string }).code === '23505') {
+                return fail(400, { message: '이미 참가자가 있습니다!' });
+            }
             return fail(500, { message: '서버 에러가 발생했습니다.' });
         }
     },

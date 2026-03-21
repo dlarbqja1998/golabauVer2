@@ -1,6 +1,6 @@
 // src/routes/list/[category]/+page.server.ts
 import { db } from '$lib/server/db';
-import { restaurants, keywordReviews, ratings } from '../../../db/schema';
+import { restaurants } from '../../../db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm'; 
 import type { PageServerLoad } from './$types';
 import { getKVCache, setKVCache } from '$lib/server/cache'; 
@@ -69,16 +69,44 @@ export const load: PageServerLoad = async ({ params, url, setHeaders, platform }
         .limit(limit)
         .offset(offset);
 
-        const listWithKeywords = await Promise.all(restaurantList.map(async (r) => {
-            const topKeywords = await db
-                .select({ keyword: keywordReviews.keyword, count: sql<number>`count(*)` })
-                .from(keywordReviews)
-                .where(eq(keywordReviews.restaurantId, r.id))
-                .groupBy(keywordReviews.keyword)
-                .orderBy(desc(sql`count(*)`))
-                .limit(3);
-            
-            return { ...r, topKeywords };
+        const restaurantIds = restaurantList.map((restaurant) => restaurant.id);
+        const topKeywordMap = new Map<number, { keyword: string; count: number }[]>();
+
+        if (restaurantIds.length > 0) {
+            const keywordRows = await db.execute(sql`
+                WITH ranked_keywords AS (
+                    SELECT
+                        restaurant_id,
+                        keyword,
+                        count(*)::int AS count,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY restaurant_id
+                            ORDER BY count(*) DESC, keyword ASC
+                        ) AS rank
+                    FROM keyword_reviews
+                    WHERE restaurant_id IN (${sql.join(restaurantIds.map((id) => sql`${id}`), sql`, `)})
+                    GROUP BY restaurant_id, keyword
+                )
+                SELECT restaurant_id, keyword, count
+                FROM ranked_keywords
+                WHERE rank <= 3
+                ORDER BY restaurant_id ASC, rank ASC
+            `);
+
+            for (const row of keywordRows.rows) {
+                const restaurantId = Number(row.restaurant_id);
+                const bucket = topKeywordMap.get(restaurantId) ?? [];
+                bucket.push({
+                    keyword: String(row.keyword),
+                    count: Number(row.count)
+                });
+                topKeywordMap.set(restaurantId, bucket);
+            }
+        }
+
+        const listWithKeywords = restaurantList.map((restaurant) => ({
+            ...restaurant,
+            topKeywords: topKeywordMap.get(restaurant.id) ?? []
         }));
 
         const resultData = {

@@ -1,4 +1,4 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // 인증서 무시 
+// 크롤링관련 TLS제거: process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { load } from 'cheerio';
 
 // 🔥 조식(breakfast) 타입 추가!

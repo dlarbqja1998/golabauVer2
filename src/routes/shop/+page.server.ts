@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-    bump: async ({ request, cookies }) => {
+    bump: async ({ request, cookies, platform }) => {
         const sessionId = cookies.get('session_id');
         if (!sessionId) return fail(401, { message: '로그인이 필요합니다.' });
 
@@ -72,6 +72,10 @@ export const actions: Actions = {
             });
 
             await db.update(rooms).set({ bumpedAt: new Date().toISOString() }).where(eq(rooms.id, roomId));
+            await Promise.allSettled([
+                platform?.env?.GOLABAU_CACHE?.delete('active_meetup_rooms'),
+                platform?.env?.GOLABAU_CACHE?.delete(`meetup_room:${roomId}`)
+            ]);
 
             return { success: true };
         } catch (e: any) {
