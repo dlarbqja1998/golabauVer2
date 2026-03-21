@@ -49,14 +49,6 @@
 	}
 
 	onMount(() => {
-		if (restaurant && typeof window !== 'undefined' && window.posthog) {
-			window.posthog.capture('view_restaurant_detail', {
-				restaurantId: restaurant.id,
-				restaurantName: restaurant.placeName,
-				category: restaurant.mainCategory || null,
-				zone: restaurant.zone || null
-			});
-		}
 		if (restaurant && window.kakao && window.kakao.maps) {
 			const container = document.getElementById('map');
 			if (container) {

@@ -58,30 +58,6 @@
         return pages;
     });
 
-    let lastListViewKey = '';
-
-    $effect(() => {
-        const currentKey = `${data.category}:${data.currentZone}:${sortOption}:${data.pagination.page}`;
-        if (typeof window !== 'undefined' && window.posthog && lastListViewKey !== currentKey) {
-            lastListViewKey = currentKey;
-            window.posthog.capture('view_category_list', {
-                category: data.category,
-                zone: data.currentZone,
-                sort: sortOption,
-                page: data.pagination.page,
-                result_count: displayRestaurants.length
-            });
-            window.posthog.capture('view_restaurant_list', {
-                category: data.category,
-                zone: data.currentZone,
-                sort: sortOption,
-                source: 'category_list',
-                page: data.pagination.page,
-                result_count: displayRestaurants.length
-            });
-        }
-    });
-
     function trackRestaurantCardClick(restaurant, index) {
         if (typeof window !== 'undefined' && window.posthog) {
             window.posthog.capture('click_restaurant_card', {

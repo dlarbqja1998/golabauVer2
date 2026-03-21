@@ -83,9 +83,6 @@
     }
 
     onMount(() => {
-        if (typeof window !== 'undefined' && window.posthog) {
-            window.posthog.capture('view_home');
-        }
         updateBusTime();
         const interval = setInterval(updateBusTime, 60000);
         return () => clearInterval(interval);

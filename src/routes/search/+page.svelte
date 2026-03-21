@@ -31,21 +31,6 @@
 		}
 	});
 
-	let lastSearchViewKey = '';
-
-	$effect(() => {
-		const currentKey = `${query}:${sortOption}:${sortedRestaurants.length}`;
-		if (typeof window !== 'undefined' && window.posthog && query && lastSearchViewKey !== currentKey) {
-			lastSearchViewKey = currentKey;
-			window.posthog.capture('view_restaurant_list', {
-				source: 'search_results',
-				query,
-				sort: sortOption,
-				result_count: sortedRestaurants.length
-			});
-		}
-	});
-
 	function trackSearchResultClick(restaurant, index) {
 		if (typeof window !== 'undefined' && window.posthog) {
 			window.posthog.capture('click_search_result_restaurant', {

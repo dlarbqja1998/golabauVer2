@@ -6,6 +6,134 @@
 	import { PUBLIC_VITE_VAPID_PUBLIC_KEY } from '$env/static/public';
 
 	const APP_VERSION = '2.1.2';
+	let lastPageviewKey = '';
+
+	type PageDataRecord = Record<string, any>;
+
+	function buildPageviewProperties(url: URL, pageData: PageDataRecord, hasSession: boolean) {
+		const pathname = url.pathname;
+		const baseProperties: Record<string, unknown> = {
+			pathname,
+			current_url: url.toString(),
+			page_group: 'general',
+			page_type: 'generic',
+			is_logged_in: hasSession
+		};
+
+		if (pathname === '/') {
+			return {
+				...baseProperties,
+				page_group: 'landing',
+				page_type: 'home'
+			};
+		}
+
+		if (pathname === '/search') {
+			return {
+				...baseProperties,
+				page_group: 'restaurant',
+				page_type: 'search',
+				has_query: Boolean(pageData.query),
+				search_query: pageData.query || null,
+				result_count: Array.isArray(pageData.restaurants) ? pageData.restaurants.length : null
+			};
+		}
+
+		if (pathname.startsWith('/list/')) {
+			return {
+				...baseProperties,
+				page_group: 'restaurant',
+				page_type: 'category_list',
+				category_name: pageData.category || null,
+				sort: pageData.sort || null,
+				zone: pageData.currentZone || null,
+				page_number: pageData.pagination?.page ?? 1,
+				result_count: Array.isArray(pageData.restaurants) ? pageData.restaurants.length : null
+			};
+		}
+
+		if (pathname.startsWith('/restaurant/')) {
+			return {
+				...baseProperties,
+				page_group: 'restaurant',
+				page_type: 'restaurant_detail',
+				restaurant_id: pageData.restaurant?.id ?? null,
+				restaurant_name: pageData.restaurant?.placeName ?? null,
+				main_category: pageData.restaurant?.mainCategory ?? null,
+				zone: pageData.restaurant?.zone ?? null
+			};
+		}
+
+		if (pathname === '/golabassyu') {
+			return {
+				...baseProperties,
+				page_group: 'community',
+				page_type: 'golabassyu_list'
+			};
+		}
+
+		if (pathname === '/shop') {
+			return {
+				...baseProperties,
+				page_group: 'utility',
+				page_type: 'point_shop'
+			};
+		}
+
+		if (pathname === '/my') {
+			return {
+				...baseProperties,
+				page_group: 'account',
+				page_type: 'my_page'
+			};
+		}
+
+		if (pathname === '/notices') {
+			return {
+				...baseProperties,
+				page_group: 'policy',
+				page_type: 'notices'
+			};
+		}
+
+		if (pathname === '/meetup') {
+			return {
+				...baseProperties,
+				page_group: 'meetup',
+				page_type: 'meetup_list'
+			};
+		}
+
+		if (pathname === '/meetup/create') {
+			return {
+				...baseProperties,
+				page_group: 'meetup',
+				page_type: 'meetup_create'
+			};
+		}
+
+		if (pathname.startsWith('/meetup/')) {
+			return {
+				...baseProperties,
+				page_group: 'meetup',
+				page_type: 'meetup_room',
+				room_id: pageData.room?.id ?? null,
+				meeting_type: pageData.room?.meetingType ?? null,
+				restaurant_name: pageData.room?.restaurantName ?? null,
+				room_status: pageData.room?.status ?? null
+			};
+		}
+
+		if (pathname === '/roulette') {
+			return {
+				...baseProperties,
+				page_group: 'utility',
+				page_type: 'roulette'
+			};
+		}
+
+		return baseProperties;
+	}
 
 	function base64UrlToUint8Array(base64Url: string) {
 		const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
@@ -154,6 +282,26 @@
 				window.posthog.reset();
 			}
 		}
+	});
+	$effect(() => {
+		if (typeof window === 'undefined' || !window.posthog) return;
+
+		const routeData = ($page.data ?? {}) as PageDataRecord;
+		const pageviewKey = JSON.stringify({
+			pathname: $page.url.pathname,
+			search: $page.url.search,
+			category: routeData.category ?? null,
+			page: routeData.pagination?.page ?? null,
+			restaurantId: routeData.restaurant?.id ?? null,
+			roomId: routeData.room?.id ?? null,
+			query: routeData.query ?? null,
+			hasSession: Boolean(data?.hasSession)
+		});
+
+		if (lastPageviewKey === pageviewKey) return;
+		lastPageviewKey = pageviewKey;
+
+		window.posthog.capture('$pageview', buildPageviewProperties($page.url, routeData, Boolean(data?.hasSession)));
 	});
 </script>
 

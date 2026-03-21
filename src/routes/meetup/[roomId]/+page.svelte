@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
 	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
 
 	let { data } = $props();
 	let user = $derived(data.user);
@@ -33,16 +32,6 @@
 			toastMessage = '';
 		}, 2500);
 	}
-
-	onMount(() => {
-		if (typeof window !== 'undefined' && window.posthog) {
-			window.posthog.capture('view_meetup_room', {
-				roomId: room.id,
-				meetingType: room.meetingType,
-				isCreator
-			});
-		}
-	});
 
 	function formatTime(isoString: string) {
 		return new Date(isoString).toLocaleString('ko-KR', {
