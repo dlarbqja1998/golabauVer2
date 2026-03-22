@@ -1,7 +1,3 @@
-// =========================================================
-//  [src/routes/meetup/[roomId]/+page.server.ts]
-//  타입스크립트 빨간줄 (Type Error) 완벽 제거 버전
-// =========================================================
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
@@ -48,13 +44,34 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
     const cacheKey = getRoomCacheKey(roomId);
 
     type CachedRoomPayload = {
-        id: number; creatorId: number; title: string; appointmentTime: string;
-        restaurantId: number | null; restaurantName: string; meetingType: string; genderCondition: string;
-        headcountCondition: string; contactType: string | null; contactId: string | null;
+        id: number;
+        creatorId: number;
+        title: string;
+        appointmentTime: string;
+        restaurantId: number | null;
+        restaurantName: string;
+        meetingType: string;
+        genderCondition: string;
+        headcountCondition: string;
+        contactType: string | null;
+        contactId: string | null;
         matchedAt: string | null;
-        status: string; creatorNickname: string; creatorProfileImg: string | null;
-        creatorGrade: string | null; creatorGender: string | null; creatorDepartment: string | null;
-        appliedReq: { id: number; requesterId: number; status: string; nickname: string; department: string | null; grade: string | null; gender: string | null; contactType: string | null; } | null;
+        status: string;
+        creatorNickname: string;
+        creatorProfileImg: string | null;
+        creatorGrade: string | null;
+        creatorGender: string | null;
+        creatorDepartment: string | null;
+        appliedReq: {
+            id: number;
+            requesterId: number;
+            status: string;
+            nickname: string;
+            department: string | null;
+            grade: string | null;
+            gender: string | null;
+            contactType: string | null;
+        } | null;
     };
 
     let payload: CachedRoomPayload | null = null;
@@ -65,8 +82,8 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
     if (!payload) {
         try {
             const roomResult = await db.execute(sql`
-                SELECT r.id, r.creator_id, r.title, r.appointment_time, r.restaurant_id, r.restaurant_name, 
-                       r.meeting_type, r.gender_condition, r.headcount_condition, r.contact_type, 
+                SELECT r.id, r.creator_id, r.title, r.appointment_time, r.restaurant_id, r.restaurant_name,
+                       r.meeting_type, r.gender_condition, r.headcount_condition, r.contact_type,
                        r.contact_id, r.status, r.bumped_at,
                        u.nickname AS creator_nickname, u.profile_img AS creator_profile_img,
                        u.grade AS creator_grade, u.gender AS creator_gender, u.department AS creator_department
@@ -74,17 +91,25 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
                 WHERE r.id = ${roomId} LIMIT 1
             `);
 
-            const rawRoom = roomResult.rows[0] as Record<string, any> | undefined;
+            const rawRoom = roomResult.rows[0] as Record<string, unknown> | undefined;
             if (!rawRoom || (rawRoom.status !== 'OPEN' && rawRoom.status !== 'MATCHED')) {
                 throw redirect(302, '/meetup?error=not_found');
             }
 
-            // 🔥 TypeScript가 안심하도록 명시적 타입 지정 (CachedRoomPayload['appliedReq'])
+            const appointmentTime = new Date(String(rawRoom.appointment_time));
+            if (
+                String(rawRoom.status) === 'OPEN' &&
+                !Number.isNaN(appointmentTime.getTime()) &&
+                appointmentTime <= new Date()
+            ) {
+                throw redirect(302, '/meetup?error=expired');
+            }
+
             let appliedReq: CachedRoomPayload['appliedReq'] = null;
-            
+
             try {
                 const reqResult = await db.execute(sql`
-                    SELECT rr.id AS request_id, rr.requester_id, rr.status AS request_status, 
+                    SELECT rr.id AS request_id, rr.requester_id, rr.status AS request_status,
                            ru.nickname AS requester_nickname, ru.grade AS requester_grade,
                            ru.gender AS requester_gender, ru.department AS requester_department,
                            ru.kakao_id, ru.insta_id
@@ -98,44 +123,46 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
                     else if (rawReq.insta_id) reqContactType = 'INSTA';
 
                     appliedReq = {
-                        id: Number(rawReq.request_id), 
-                        requesterId: Number(rawReq.requester_id), 
+                        id: Number(rawReq.request_id),
+                        requesterId: Number(rawReq.requester_id),
                         status: String(rawReq.request_status),
-                        nickname: String(rawReq.requester_nickname ?? '익명'), 
-                        department: rawReq.requester_department ? String(rawReq.requester_department) : null, 
+                        nickname: String(rawReq.requester_nickname ?? '익명'),
+                        department: rawReq.requester_department ? String(rawReq.requester_department) : null,
                         grade: rawReq.requester_grade ? String(rawReq.requester_grade) : null,
                         gender: rawReq.requester_gender ? String(rawReq.requester_gender) : null,
                         contactType: reqContactType
                     };
                 }
-            } catch (e) { console.log("참여자 조회 실패"); }
+            } catch (error) {
+                console.log('참여자 조회 실패', error);
+            }
 
             payload = {
-                id: Number(rawRoom.id), 
-                creatorId: Number(rawRoom.creator_id), 
+                id: Number(rawRoom.id),
+                creatorId: Number(rawRoom.creator_id),
                 title: String(rawRoom.title),
-                appointmentTime: String(rawRoom.appointment_time), 
+                appointmentTime: String(rawRoom.appointment_time),
                 restaurantId: rawRoom.restaurant_id ? Number(rawRoom.restaurant_id) : null,
                 restaurantName: String(rawRoom.restaurant_name),
-                meetingType: String(rawRoom.meeting_type), 
+                meetingType: String(rawRoom.meeting_type),
                 genderCondition: String(rawRoom.gender_condition),
-                headcountCondition: String(rawRoom.headcount_condition), 
+                headcountCondition: String(rawRoom.headcount_condition),
                 contactType: rawRoom.contact_type ? String(rawRoom.contact_type) : null,
-                contactId: rawRoom.contact_id ? String(rawRoom.contact_id) : null, 
+                contactId: rawRoom.contact_id ? String(rawRoom.contact_id) : null,
                 matchedAt: rawRoom.bumped_at ? String(rawRoom.bumped_at) : null,
-                status: String(rawRoom.status), 
-                creatorNickname: String(rawRoom.creator_nickname), 
+                status: String(rawRoom.status),
+                creatorNickname: String(rawRoom.creator_nickname),
                 creatorProfileImg: rawRoom.creator_profile_img ? String(rawRoom.creator_profile_img) : null,
-                creatorGrade: rawRoom.creator_grade ? String(rawRoom.creator_grade) : null, 
-                creatorGender: rawRoom.creator_gender ? String(rawRoom.creator_gender) : null, 
+                creatorGrade: rawRoom.creator_grade ? String(rawRoom.creator_grade) : null,
+                creatorGender: rawRoom.creator_gender ? String(rawRoom.creator_gender) : null,
                 creatorDepartment: rawRoom.creator_department ? String(rawRoom.creator_department) : null,
-                appliedReq: appliedReq
+                appliedReq
             };
 
             if (kv) await kv.put(cacheKey, JSON.stringify(payload), { expirationTtl: 60 });
-        } catch (e) {
-            console.error('방 정보 조회 에러:', e);
-            if (e instanceof Response) throw e;
+        } catch (error) {
+            console.error('방 정보 조회 에러:', error);
+            if (error instanceof Response) throw error;
             throw redirect(302, '/meetup?error=db_error');
         }
     }
@@ -158,21 +185,28 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
     const canSeeContact = payload.status === 'MATCHED' && (isCreator || isApplicant || isAdmin);
 
     const room = {
-        id: payload.id, title: payload.title, appointmentTime: payload.appointmentTime,
-        restaurantId: payload.restaurantId, restaurantName: payload.restaurantName, meetingType: payload.meetingType,
-        genderCondition: payload.genderCondition, headcountCondition: payload.headcountCondition,
-        contactType: payload.contactType, // 연락처 종류(카카오/인스타)는 항상 표시
+        id: payload.id,
+        title: payload.title,
+        appointmentTime: payload.appointmentTime,
+        restaurantId: payload.restaurantId,
+        restaurantName: payload.restaurantName,
+        meetingType: payload.meetingType,
+        genderCondition: payload.genderCondition,
+        headcountCondition: payload.headcountCondition,
+        contactType: payload.contactType,
         contactId: canSeeContact ? payload.contactId : null,
         matchedAt: payload.status === 'MATCHED' ? payload.matchedAt : null,
-        status: payload.status, creatorNickname: payload.creatorNickname,
-        creatorGrade: payload.creatorGrade, creatorGender: payload.creatorGender, creatorDepartment: payload.creatorDepartment
+        status: payload.status,
+        creatorNickname: payload.creatorNickname,
+        creatorGrade: payload.creatorGrade,
+        creatorGender: payload.creatorGender,
+        creatorDepartment: payload.creatorDepartment
     };
 
     return { user: locals.user, room, isCreator, appliedReq: payload.appliedReq };
 };
 
 export const actions: Actions = {
-    // deleteRoom, apply, confirm 액션은 기존과 동일하게 유지! (아래 생략)
     deleteRoom: async ({ params, locals, platform }) => {
         if (!locals.user) return fail(401, { message: '로그인이 필요합니다.' });
         const roomId = Number(params.roomId);
@@ -186,7 +220,9 @@ export const actions: Actions = {
                 return fail(403, { message: '권한이 없습니다.' });
             }
 
-            try { await db.execute(sql`DELETE FROM room_requests WHERE room_id = ${roomId}`); } catch(e){}
+            try {
+                await db.execute(sql`DELETE FROM room_requests WHERE room_id = ${roomId}`);
+            } catch {}
             await db.execute(sql`DELETE FROM rooms WHERE id = ${roomId}`);
             await invalidateMeetupCaches(platform, roomId);
             throw redirect(303, '/meetup');
@@ -201,19 +237,29 @@ export const actions: Actions = {
         const roomId = Number(params.roomId);
 
         try {
-            const roomResult = await db.execute(sql`SELECT creator_id, status FROM rooms WHERE id = ${roomId} LIMIT 1`);
+            const roomResult = await db.execute(sql`
+                SELECT creator_id, status, appointment_time
+                FROM rooms
+                WHERE id = ${roomId}
+                LIMIT 1
+            `);
             const room = roomResult.rows[0];
             if (!room || room.status !== 'OPEN') return fail(404, { message: '참가할 수 없는 방입니다.' });
-            if (Number(room.creator_id) === locals.user.id) return fail(400, { message: '본인 방에는 참가 불가!' });
+            if (Number(room.creator_id) === locals.user.id) return fail(400, { message: '본인 방에는 참가할 수 없습니다.' });
+            if (new Date(String(room.appointment_time)) <= new Date()) {
+                return fail(400, { message: '이미 만료된 방입니다.' });
+            }
 
-
-            await db.execute(sql`INSERT INTO room_requests (room_id, requester_id, status) VALUES (${roomId}, ${locals.user.id}, 'PENDING')`);
+            await db.execute(sql`
+                INSERT INTO room_requests (room_id, requester_id, status)
+                VALUES (${roomId}, ${locals.user.id}, 'PENDING')
+            `);
             await invalidateMeetupCaches(platform, roomId);
 
-            return { success: true, message: '참가 완료!' };
+            return { success: true, message: '참가를 신청했습니다.' };
         } catch (error) {
             if ((error as { code?: string }).code === '23505') {
-                return fail(400, { message: '이미 참가자가 있습니다!' });
+                return fail(400, { message: '이미 참가자가 있습니다.' });
             }
             return fail(500, { message: '서버 에러가 발생했습니다.' });
         }
@@ -225,18 +271,30 @@ export const actions: Actions = {
         const isTestMode = locals.user.role === 'admin' && url.searchParams.get('test') === 'participant';
 
         try {
-            const roomResult = await db.execute(sql`SELECT creator_id, status FROM rooms WHERE id = ${roomId} LIMIT 1`);
+            const roomResult = await db.execute(sql`
+                SELECT creator_id, status, meeting_type, headcount_condition
+                FROM rooms
+                WHERE id = ${roomId}
+                LIMIT 1
+            `);
             const room = roomResult.rows[0];
             if (!room) return fail(404, { message: '방이 존재하지 않습니다.' });
 
-            const reqResult = await db.execute(sql`SELECT id, requester_id, status FROM room_requests WHERE room_id = ${roomId} LIMIT 1`);
+            const reqResult = await db.execute(sql`
+                SELECT id, requester_id, status
+                FROM room_requests
+                WHERE room_id = ${roomId}
+                LIMIT 1
+            `);
             const req = reqResult.rows[0];
             if (!req) return fail(400, { message: '참가자가 없습니다.' });
 
             const isCreator = Number(room.creator_id) === locals.user.id && !isTestMode;
             const isApplicant = Number(req.requester_id) === locals.user.id || isTestMode;
 
-            if (!isCreator && !isApplicant && locals.user.role !== 'admin') return fail(403, { message: '권한이 없습니다.' });
+            if (!isCreator && !isApplicant && locals.user.role !== 'admin') {
+                return fail(403, { message: '권한이 없습니다.' });
+            }
 
             let pushTarget: number | null = null;
             let pushTitle = '';
@@ -245,30 +303,30 @@ export const actions: Actions = {
             let isMatchComplete = false;
 
             if (isCreator) {
-                if (req.status === 'APPLICANT_READY') { 
-                    newStatus = 'MATCHED'; isMatchComplete = true; 
+                if (req.status === 'APPLICANT_READY') {
+                    newStatus = 'MATCHED';
+                    isMatchComplete = true;
                     pushTarget = Number(req.requester_id);
-                    pushTitle = '매칭 성사 완료!';
-                    pushBody = '접속해서 연락처를 확인하세요!';
-                } 
-                else if (req.status === 'PENDING') {
+                    pushTitle = '매칭이 성사되었습니다.';
+                    pushBody = '접속해서 연락처를 확인해 주세요.';
+                } else if (req.status === 'PENDING') {
                     newStatus = 'HOST_READY';
                     pushTarget = Number(req.requester_id);
-                    pushTitle = '방장이 준비 됐어요!';
-                    pushBody = '접속해서 확인을 눌러주세요!';
+                    pushTitle = '방장이 준비를 완료했습니다.';
+                    pushBody = '접속해서 확인을 눌러 주세요.';
                 }
             } else {
-                if (req.status === 'HOST_READY') { 
-                    newStatus = 'MATCHED'; isMatchComplete = true; 
+                if (req.status === 'HOST_READY') {
+                    newStatus = 'MATCHED';
+                    isMatchComplete = true;
                     pushTarget = Number(room.creator_id);
-                    pushTitle = '매칭 성사 완료!';
-                    pushBody = '접속해서 연락처를 확인하세요!';
-                } 
-                else if (req.status === 'PENDING') {
+                    pushTitle = '매칭이 성사되었습니다.';
+                    pushBody = '접속해서 연락처를 확인해 주세요.';
+                } else if (req.status === 'PENDING') {
                     newStatus = 'APPLICANT_READY';
                     pushTarget = Number(room.creator_id);
-                    pushTitle = '상대방이 준비 됐어요!';
-                    pushBody = '접속해서 확인을 눌러주세요!';
+                    pushTitle = '상대방이 준비를 완료했습니다.';
+                    pushBody = '접속해서 확인을 눌러 주세요.';
                 }
             }
 
@@ -283,15 +341,16 @@ export const actions: Actions = {
                     headcountCondition: room.headcount_condition ?? null
                 });
             }
-            
+
             await invalidateMeetupCaches(platform, roomId);
 
-            // [푸시 알림 비동기 백그라운드 발송]
             if (pushTarget) {
-                sendPushNotification(pushTarget, pushTitle, pushBody, `/meetup/${roomId}`).catch(e => console.error("Confirm Push Error:", e));
+                sendPushNotification(pushTarget, pushTitle, pushBody, `/meetup/${roomId}`).catch((error) => {
+                    console.error('Confirm Push Error:', error);
+                });
             }
 
-            return { success: true, message: isMatchComplete ? '매칭 성공! 🎉' : '준비 완료!' };
+            return { success: true, message: isMatchComplete ? '매칭에 성공했습니다.' : '준비를 완료했습니다.' };
         } catch (error) {
             return fail(500, { message: '서버 에러가 발생했습니다.' });
         }
@@ -302,7 +361,12 @@ export const actions: Actions = {
         const roomId = Number(params.roomId);
 
         try {
-            const reqResult = await db.execute(sql`SELECT id, requester_id, status FROM room_requests WHERE room_id = ${roomId} LIMIT 1`);
+            const reqResult = await db.execute(sql`
+                SELECT id, requester_id, status
+                FROM room_requests
+                WHERE room_id = ${roomId}
+                LIMIT 1
+            `);
             const req = reqResult.rows[0];
             if (!req) return fail(400, { message: '참가 내역이 없습니다.' });
 
@@ -332,14 +396,21 @@ export const actions: Actions = {
             const room = roomResult.rows[0];
             if (!room) return fail(404, { message: '방이 존재하지 않습니다.' });
 
-            const reqResult = await db.execute(sql`SELECT id, requester_id, status FROM room_requests WHERE room_id = ${roomId} LIMIT 1`);
+            const reqResult = await db.execute(sql`
+                SELECT id, requester_id, status
+                FROM room_requests
+                WHERE room_id = ${roomId}
+                LIMIT 1
+            `);
             const req = reqResult.rows[0];
             if (!req) return fail(400, { message: '참가자가 없습니다.' });
 
             const isCreator = Number(room.creator_id) === locals.user.id && !isTestMode;
             const isApplicant = Number(req.requester_id) === locals.user.id || isTestMode;
 
-            if (!isCreator && !isApplicant && locals.user.role !== 'admin') return fail(403, { message: '권한이 없습니다.' });
+            if (!isCreator && !isApplicant && locals.user.role !== 'admin') {
+                return fail(403, { message: '권한이 없습니다.' });
+            }
 
             if (req.status === 'MATCHED') {
                 return fail(400, { message: '매칭이 성사된 방은 준비 취소가 불가능합니다.' });

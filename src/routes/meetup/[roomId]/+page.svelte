@@ -62,7 +62,7 @@
 				if (typeof window !== 'undefined' && window.posthog) {
 					window.posthog.capture('delete_meetup_room_success', { roomId: room.id });
 				}
-				showToast('방이 삭제되었어요.');
+				showToast('방이 삭제되었습니다.');
 				setTimeout(() => {
 					goto(result.location);
 				}, 1500);
@@ -73,7 +73,7 @@
 						reason: result.data?.message
 					});
 				}
-				showToast(result.data?.message || '방 삭제에 실패했어요.');
+				showToast(result.data?.message || '방 삭제에 실패했습니다.');
 			}
 		};
 	}
@@ -90,7 +90,7 @@
 				if (typeof window !== 'undefined' && window.posthog) {
 					window.posthog.capture(`${actionName}_meetup_room_success`, { roomId: room.id });
 				}
-				showToast(result.data?.message || '완료됐어요.');
+				showToast(result.data?.message || '완료되었습니다.');
 				update();
 			} else if (result.type === 'failure') {
 				if (typeof window !== 'undefined' && window.posthog) {
@@ -99,14 +99,14 @@
 						reason: result.data?.message
 					});
 				}
-				showToast(result.data?.message || '실패했어요.');
+				showToast(result.data?.message || '실패했습니다.');
 			}
 		};
 	}
 
 	function getGenderText(gender: string | null) {
-		if (gender === 'MALE') return '남';
-		if (gender === 'FEMALE') return '여';
+		if (gender === 'male' || gender === 'MALE') return '남';
+		if (gender === 'female' || gender === 'FEMALE') return '여';
 		return '비공개';
 	}
 
@@ -128,7 +128,7 @@
 		if (typeof window !== 'undefined' && window.posthog) {
 			window.posthog.capture('copy_contact_id', { roomId: room.id, type: room.contactType });
 		}
-		showToast('연락처를 복사했어요.');
+		showToast('연락처를 복사했습니다.');
 	}
 </script>
 
@@ -140,7 +140,7 @@
 			</div>
 		{:else}
 			<div class="bg-yellow-300 text-gray-800 text-xs font-bold text-center py-2 flex justify-center items-center gap-2 shadow-sm">
-				<span>현재 참여자로 보고 있어요</span><a href="/meetup/{room.id}" class="underline hover:text-black transition-colors">방장 시점으로 돌아가기</a>
+				<span>현재 참여자 시점으로 보고 있습니다.</span><a href="/meetup/{room.id}" class="underline hover:text-black transition-colors">방장 시점으로 돌아가기</a>
 			</div>
 		{/if}
 	{/if}
@@ -163,7 +163,7 @@
 	<div class="p-5 flex flex-col gap-4">
 		<div class="bg-white p-5 rounded-2xl shadow-sm border border-red-50 flex flex-col gap-3">
 			<div class="flex justify-between items-start">
-				<span class="text-xs font-bold px-3 py-1 bg-[#8B0029] text-white rounded-md">{room.headcountCondition === '1:1' ? '🫂' : '👥'} {room.headcountCondition}</span>
+				<span class="text-xs font-bold px-3 py-1 bg-[#8B0029] text-white rounded-md">{room.headcountCondition === '1:1' ? '밥약' : '과팅'} {room.headcountCondition}</span>
 				<span class="text-xs font-bold px-2 py-1 bg-red-50 text-[#8B0029] rounded-md">{getConditionText(room.genderCondition)}</span>
 			</div>
 			<h2 class="text-xl font-bold text-[#4a0715] leading-snug">{room.title}</h2>
@@ -189,14 +189,14 @@
 			<div class="p-6 bg-[#8B0029] rounded-2xl text-white flex flex-col items-center gap-3 shadow-lg animate-fade-in">
 				<span class="text-4xl">🎉</span>
 				<h3 class="text-2xl font-bold font-['Jua']">매칭 성사 완료!</h3>
-				<p class="text-sm text-red-100 text-center font-bold">이제 서로 연락해서 약속을 잡아보세요!</p>
+				<p class="text-sm text-red-100 text-center font-bold">이제 서로 연락해서 약속을 잡아보세요.</p>
 				{#if formatMatchedTime(room.matchedAt)}
 					<div class="w-full bg-white/10 border border-red-400/20 rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-sm font-bold text-red-50">
 						<Clock size={16} class="text-red-100" />
 						<span>성사 시각 {formatMatchedTime(room.matchedAt)}</span>
 					</div>
 				{/if}
-				<p class="text-xs text-yellow-300 text-center font-bold mt-1 bg-black/20 px-3 py-1.5 rounded-full inline-block animate-pulse">⏳ 1시간 지나면 방이 폭파되니 빨리 연락하세요!</p>
+				<p class="text-xs text-yellow-300 text-center font-bold mt-1 bg-black/20 px-3 py-1.5 rounded-full inline-block animate-pulse">1시간이 지나면 방이 사라지니 빨리 연락해 주세요.</p>
 				<div class="bg-white/10 w-full p-4 rounded-xl flex flex-col gap-2 mt-2 border border-red-400/30 text-center relative">
 					<span class="text-xs font-bold text-red-200">방장 연락처 ({getContactTypeText(room.contactType)})</span>
 					<div class="flex items-center justify-center gap-2">
@@ -209,7 +209,7 @@
 			</div>
 		{:else}
 			<div class="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden flex flex-col">
-				<div class="bg-[#8B0029] text-white text-center py-2 text-sm font-bold font-['Jua']">교환 현황</div>
+				<div class="bg-[#8B0029] text-white text-center py-2 text-sm font-bold font-['Jua']">현황</div>
 
 				<div class="flex w-full divide-x divide-red-50 h-[190px]">
 					<div class="flex-1 flex flex-col justify-center p-4 bg-red-50/50 relative">
@@ -221,7 +221,7 @@
 							</span>
 							<span class="text-[11px] font-bold bg-red-100/50 text-[#8B0029] px-2 py-1.5 rounded-md text-center leading-tight break-keep shadow-sm">
 								{isCreator && isTestMode ? '23학번' : (room.creatorGrade || '학년미상')} /
-								{getGenderText(isCreator && isTestMode ? 'MALE' : room.creatorGender)} /
+								{getGenderText(isCreator && isTestMode ? 'male' : room.creatorGender)} /
 								{isCreator && isTestMode ? 'test학과' : (room.creatorDepartment || '학과미상')} /
 								{getContactTypeText(room.contactType)}
 							</span>
@@ -254,7 +254,7 @@
 								{:else}
 									<form method="POST" action="?/apply" use:enhance={handleAction} class="w-full">
 										<button type="submit" disabled={isProcessing} class="w-full py-3 bg-[#8B0029] text-white font-bold rounded-lg shadow-sm active:scale-95 transition-all text-sm">
-											{isProcessing ? '처리중...' : '참가'}
+											{isProcessing ? '처리 중...' : '참가'}
 										</button>
 									</form>
 								{/if}
@@ -269,7 +269,7 @@
 								</span>
 								<span class="text-[11px] font-bold bg-gray-100 text-gray-600 px-2 py-1.5 rounded-md text-center leading-tight break-keep shadow-sm">
 									{isTestMode ? '23학번' : (appliedReq.grade || '학년미상')} /
-									{getGenderText(isTestMode ? 'MALE' : appliedReq.gender)} /
+									{getGenderText(isTestMode ? 'male' : appliedReq.gender)} /
 									{isTestMode ? 'test학과' : (appliedReq.department || '학과미상')} /
 									{getContactTypeText(appliedReq.contactType)}
 								</span>
@@ -288,7 +288,7 @@
 									{#if (!isCreator || isTestMode)}
 										<form method="POST" action="?/cancelApply" use:enhance={handleAction} class="w-1/2">
 											<button type="submit" disabled={isProcessing} class="w-full py-2.5 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold shadow-sm hover:bg-red-50 hover:text-red-500 active:scale-95 transition-all">
-												참가취소
+												참가 취소
 											</button>
 										</form>
 									{/if}
@@ -307,7 +307,7 @@
 
 		<div class="bg-[#8B0029]/5 p-4 rounded-xl border border-[#8B0029]/10 flex gap-3 items-start">
 			<ShieldAlert size={20} class="text-[#8B0029] shrink-0 mt-0.5" />
-			<p class="text-xs text-[#6b0d0d] leading-relaxed font-bold">연락처는 매칭 성사 시에만 공개됩니다!</p>
+			<p class="text-xs text-[#6b0d0d] leading-relaxed font-bold">연락처는 매칭 성사 시에만 공개됩니다.</p>
 		</div>
 	</div>
 
@@ -315,7 +315,7 @@
 		{#if isCreator && !isMatchComplete}
 			<button type="button" onclick={() => { showConfirmDelete = true; }} disabled={isDeleting} class="w-full py-3 bg-red-50 text-red-500 font-bold rounded-xl text-sm shadow-sm active:scale-95">방 폭파 버튼</button>
 		{:else}
-			<button onclick={() => goto('/meetup')} class="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl text-sm shadow-sm active:scale-95">리스트로 나가기</button>
+			<button onclick={() => goto('/meetup')} class="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl text-sm shadow-sm active:scale-95">리스트로 돌아가기</button>
 		{/if}
 	</div>
 </div>
@@ -323,13 +323,13 @@
 {#if showConfirmDelete}
 	<div class="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm" transition:fly={{ y: 20, duration: 200 }}>
 		<div class="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col items-center">
-			<div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4"><span class="text-3xl">🗑</span></div>
+			<div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4"><span class="text-3xl">💥</span></div>
 			<p class="text-xl font-bold text-[#8B0029] mb-2 font-['Jua']">정말로 방을 폭파하시겠어요?</p>
-			<p class="text-sm text-[#6b0d0d]/70 mb-6 text-center font-bold">폭파한 방은 다시 복구할 수 없어요.<br />기다리던 사람도 있을 수 있어요.</p>
+			<p class="text-sm text-[#6b0d0d]/70 mb-6 text-center font-bold">폭파한 방은 다시 복구할 수 없습니다.<br />기다리던 알림도 함께 사라집니다.</p>
 			<div class="flex gap-3 w-full">
 				<button onclick={() => showConfirmDelete = false} class="flex-1 py-3.5 bg-gray-100 rounded-xl font-bold text-gray-600 active:scale-95">조금 더 보기</button>
 				<form method="POST" action="?/deleteRoom" use:enhance={handleDelete} class="flex-1">
-					<button type="submit" class="w-full py-3.5 bg-[#8B0029] text-white rounded-xl font-bold active:scale-95 shadow-md">네 폭파할래요</button>
+					<button type="submit" class="w-full py-3.5 bg-[#8B0029] text-white rounded-xl font-bold active:scale-95 shadow-md">바로 폭파할래요</button>
 				</form>
 			</div>
 		</div>

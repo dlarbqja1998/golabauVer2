@@ -21,7 +21,7 @@
 	const PREP_TAB = 'prep';
 	const DONE_TAB = 'done';
 	const tabItems = [
-		{ key: PREP_TAB, label: '준비' },
+		{ key: PREP_TAB, label: '준비 중' },
 		{ key: DONE_TAB, label: '내 방과 완료' }
 	] as const;
 
@@ -46,7 +46,7 @@
 	$effect(() => {
 		const error = $page.url.searchParams.get('error');
 		if (error === 'forbidden') {
-			showToast('매칭이 완료된 방은 참여자만 들어갈 수 있어요.');
+			showToast('매칭 완료 방은 참여자만 들어갈 수 있습니다.');
 			window.history.replaceState({}, '', '/meetup');
 		}
 	});
@@ -57,11 +57,18 @@
 		activeTab = tab;
 	}
 
-	function getGenderText(condition: string) {
+	function getGenderConditionText(condition: string) {
 		if (condition === 'MALE') return '남자만';
 		if (condition === 'FEMALE') return '여자만';
 		return '성별무관';
 	}
+
+	function getGenderText(gender: string | null) {
+		if (gender === 'male' || gender === 'MALE') return '남';
+		if (gender === 'female' || gender === 'FEMALE') return '여';
+		return '';
+	}
+
 	function trackRoomClick(room: Room) {
 		if (typeof window !== 'undefined' && window.posthog) {
 			window.posthog.capture('click_meetup_room_card', {
@@ -121,10 +128,7 @@
 				{/if}
 
 				{#if activeTab === tab.key}
-					<div
-						class="absolute bottom-0 left-0 w-full h-0.5 bg-[#8B0029]"
-						transition:fade={{ duration: 150 }}
-					></div>
+					<div class="absolute bottom-0 left-0 w-full h-0.5 bg-[#8B0029]" transition:fade={{ duration: 150 }}></div>
 				{/if}
 			</button>
 		{/each}
@@ -133,15 +137,15 @@
 	<div class="px-5 mt-4 flex flex-col gap-3">
 		{#if filteredRooms.length === 0}
 			<div class="py-20 text-center flex flex-col items-center justify-center gap-2 animate-fade-in">
-				<div class="text-4xl mb-2">🥲</div>
+				<div class="text-4xl mb-2">📭</div>
 				<h3 class="font-bold text-gray-600 font-['Jua'] text-lg">
-					{activeTab === PREP_TAB ? '아직 모집 중인 방이 없어요' : '내 방과 완료된 방이 없어요'}
+					{activeTab === PREP_TAB ? '아직 모집 중인 방이 없습니다.' : '내 방과 완료된 방이 없습니다.'}
 				</h3>
 				<p class="text-gray-400 text-sm font-['Noto_Sans_KR']">
 					{#if activeTab === PREP_TAB}
-						오른쪽 하단 버튼을 눌러<br />직접 첫 번째 방을 만들어 보세요
+						아래쪽 하단 버튼을 눌러<br />직접 첫 번째 방을 만들어 보세요.
 					{:else}
-						새로운 방을 만들거나 매칭에 참여해 보세요
+						새로운 방을 만들거나 매칭에 참여해 보세요.
 					{/if}
 				</p>
 			</div>
@@ -162,12 +166,12 @@
 						<div class="flex justify-between items-start mb-2">
 							<span class="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md flex items-center">
 								<span>
-									{getGenderText(room.genderCondition)} {room.headcountCondition ? `· ${room.headcountCondition}` : ''}
+									{getGenderConditionText(room.genderCondition)} {room.headcountCondition ? `· ${room.headcountCondition}` : ''}
 								</span>
 								{#if room.creatorGrade && room.creatorGender}
 									<span class="mx-1.5 text-gray-300 font-normal">|</span>
 									<span class="text-[#8B0029]">
-										{room.creatorGrade} {room.creatorGender === 'MALE' ? '남' : room.creatorGender === 'FEMALE' ? '여' : ''}
+										{room.creatorGrade} {getGenderText(room.creatorGender)}
 									</span>
 								{/if}
 							</span>
