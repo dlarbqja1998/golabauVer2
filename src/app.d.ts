@@ -31,6 +31,8 @@ declare global {
         interface Platform {
             env: {
                 GOLABAU_CACHE: KVNamespace;
+                CACHE_CLEAR_SECRET?: string;
+                ADMIN_SECRET_KEY?: string;
             };
             context: {
                 waitUntil(promise: Promise<any>): void;
