@@ -6,10 +6,18 @@
 		"nodejs_als",
 		"nodejs_compat"
 	],
-	"main": ".svelte-kit/cloudflare/_worker.js",
+	"main": "worker/index.ts",
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
+	},
+	"triggers": {
+		"crons": [
+			"0 2 * * 1",
+			"5 2 * * 1",
+			"0 23 * * 1-4",
+			"5 23 * * 1-4"
+		]
 	},
 	"workers_dev": true,
 	"preview_urls": true,
