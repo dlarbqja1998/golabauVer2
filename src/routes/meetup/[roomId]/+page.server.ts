@@ -71,6 +71,7 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
             grade: string | null;
             gender: string | null;
             contactType: string | null;
+            contactId: string | null;
         } | null;
     };
 
@@ -130,7 +131,12 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
                         department: rawReq.requester_department ? String(rawReq.requester_department) : null,
                         grade: rawReq.requester_grade ? String(rawReq.requester_grade) : null,
                         gender: rawReq.requester_gender ? String(rawReq.requester_gender) : null,
-                        contactType: reqContactType
+                        contactType: reqContactType,
+                        contactId: rawReq.kakao_id
+                            ? String(rawReq.kakao_id)
+                            : rawReq.insta_id
+                                ? String(rawReq.insta_id)
+                                : null
                     };
                 }
             } catch (error) {
@@ -183,6 +189,12 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
     }
 
     const canSeeContact = payload.status === 'MATCHED' && (isCreator || isApplicant || isAdmin);
+    const matchedContactType = isCreator
+        ? payload.appliedReq?.contactType ?? null
+        : payload.contactType;
+    const matchedContactId = isCreator
+        ? payload.appliedReq?.contactId ?? null
+        : payload.contactId;
 
     const room = {
         id: payload.id,
@@ -193,8 +205,8 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
         meetingType: payload.meetingType,
         genderCondition: payload.genderCondition,
         headcountCondition: payload.headcountCondition,
-        contactType: payload.contactType,
-        contactId: canSeeContact ? payload.contactId : null,
+        contactType: canSeeContact ? matchedContactType : null,
+        contactId: canSeeContact ? matchedContactId : null,
         matchedAt: payload.status === 'MATCHED' ? payload.matchedAt : null,
         status: payload.status,
         creatorNickname: payload.creatorNickname,
