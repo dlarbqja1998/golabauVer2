@@ -1,9 +1,8 @@
 import type { Handle } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { getUserBySessionId, getUserCacheKey, isMeetupProfileComplete } from '$lib/server/user';
+import { getUserBySessionId, isMeetupProfileComplete } from '$lib/server/user';
 import { db } from '$lib/server/db';
 import { users } from './db/schema';
-import { deleteKVCache, setKVCache } from '$lib/server/cache';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
@@ -50,10 +49,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		if (freshUser) {
 			resolvedUser = freshUser;
-			if (freshUser.isOnboarded !== cachedUser.isOnboarded) {
-				await deleteKVCache(event.platform, getUserCacheKey(cachedUser.id));
-				await setKVCache(event.platform, getUserCacheKey(cachedUser.id), freshUser, 3600);
-			}
 		}
 	}
 

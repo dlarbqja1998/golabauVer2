@@ -4,8 +4,7 @@ import { db } from '$lib/server/db';
 import { users, golabassyuPosts } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
-import { deleteKVCache } from '$lib/server/cache';
-import { getUserBySessionId, getUserIdFromSessionToken, getUserCacheKey } from '$lib/server/user';
+import { getUserBySessionId, getUserIdFromSessionToken } from '$lib/server/user';
 
 const loginAttempts = new Map();
 
@@ -35,23 +34,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-    logout: async ({ cookies, platform }) => {
-        const sessionId = cookies.get('session_id');
-        if (sessionId) {
-            const userId = getUserIdFromSessionToken(sessionId);
-            if (userId) {
-                await deleteKVCache(platform, getUserCacheKey(userId));
-            }
-        }
+    logout: async ({ cookies }) => {
         cookies.delete('session_id', { path: '/' });
         throw redirect(303, '/');
     },
 
-    updateProfile: async ({ request, cookies, platform }) => {
+    updateProfile: async ({ request, cookies }) => {
         const sessionId = cookies.get('session_id');
         if (!sessionId) return fail(401);
 
-        const sessionUser = await getUserBySessionId(platform, sessionId);
+        const sessionUser = await getUserBySessionId(undefined, sessionId);
         if (!sessionUser) return fail(401);
 
         const data = await request.formData();
@@ -72,7 +64,6 @@ export const actions: Actions = {
                 .set({ nickname, college, department, grade, kakaoId, instaId })
                 .where(eq(users.id, sessionUser.id));
 
-            await deleteKVCache(platform, getUserCacheKey(sessionUser.id));
             return { success: true };
         } catch (error) {
             return fail(500, { message: '수정에 실패했습니다.' });

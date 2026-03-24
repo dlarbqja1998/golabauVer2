@@ -2,6 +2,7 @@ import { getCafeteriaMenu } from './scraper';
 
 export const MENU_CACHE_KEY = 'today_cafeteria_menu';
 export const MENU_META_KEY = 'today_cafeteria_menu_meta';
+type MenuKV = App.Platform['env']['GOLABAU_CACHE'];
 
 export type TodayMenu = {
     date: string;
@@ -18,6 +19,11 @@ export type TodayMenu = {
     };
 };
 
+type MenuRefreshResult =
+    | { status: 'updated'; menu: TodayMenu }
+    | { status: 'skipped'; reason: 'missing_kv' | 'already_fresh' }
+    | { status: 'failed'; reason: string };
+
 type MenuCacheMeta = {
     menuDate: string;
     fetchedAt: string;
@@ -28,7 +34,7 @@ type MenuCacheMeta = {
 
 type CachePlatform = {
     env?: {
-        GOLABAU_CACHE?: KVNamespace;
+        GOLABAU_CACHE?: MenuKV;
     };
 };
 
@@ -67,7 +73,7 @@ function getSeoulDateParts(now = new Date()) {
     };
 }
 
-async function readJson<T>(kv: KVNamespace | null, key: string): Promise<T | null> {
+async function readJson<T>(kv: MenuKV | null, key: string): Promise<T | null> {
     if (!kv) return null;
 
     try {
@@ -79,7 +85,7 @@ async function readJson<T>(kv: KVNamespace | null, key: string): Promise<T | nul
     }
 }
 
-async function writeJson(kv: KVNamespace | null, key: string, value: unknown, expirationTtl: number) {
+async function writeJson(kv: MenuKV | null, key: string, value: unknown, expirationTtl: number) {
     if (!kv) return;
 
     try {
@@ -93,12 +99,20 @@ function isTodayMenu(value: unknown): value is TodayMenu {
     return !!value && typeof value === 'object' && 'student' in value && 'faculty' in value;
 }
 
-export async function getCachedTodayMenu(platform: CachePlatform | undefined): Promise<TodayMenu | null> {
-    const cached = await readJson<unknown>(getMenuCache(platform), MENU_CACHE_KEY);
-    return isTodayMenu(cached) ? cached : null;
+function isFreshTodayMenu(menu: TodayMenu | null, now = new Date()) {
+    if (!menu) return false;
+
+    const { cacheDate } = getSeoulDateParts(now);
+    return menu.date === cacheDate;
 }
 
-export async function refreshTodayMenuCache(platform: CachePlatform | undefined) {
+export async function getCachedTodayMenu(platform: CachePlatform | undefined): Promise<TodayMenu | null> {
+    const cached = await readJson<unknown>(getMenuCache(platform), MENU_CACHE_KEY);
+    const menu = isTodayMenu(cached) ? cached : null;
+    return isFreshTodayMenu(menu) ? menu : null;
+}
+
+export async function refreshTodayMenuCache(platform: CachePlatform | undefined): Promise<MenuRefreshResult> {
     const kv = getMenuCache(platform);
     if (!kv) {
         return { status: 'skipped' as const, reason: 'missing_kv' };
@@ -160,4 +174,18 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
         console.error('scheduled menu refresh failed:', error);
         return { status: 'failed' as const, reason: error instanceof Error ? error.message : 'unknown_error' };
     }
+}
+
+export async function getTodayMenuWithRefresh(platform: CachePlatform | undefined): Promise<TodayMenu | null> {
+    const cachedMenu = await getCachedTodayMenu(platform);
+    if (cachedMenu) {
+        return cachedMenu;
+    }
+
+    const refreshed = await refreshTodayMenuCache(platform);
+    if (refreshed.status === 'updated') {
+        return refreshed.menu;
+    }
+
+    return null;
 }

@@ -6,20 +6,13 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
-import { getUserBySessionId, getUserIdFromSessionToken, isMeetupProfileComplete } from '$lib/server/user';
+import { isMeetupProfileComplete } from '$lib/server/user';
 
 const CACHE_KEY = 'active_meetup_rooms';
 
-export const load: PageServerLoad = async ({ cookies, platform }) => {
-    const sessionId = cookies.get('session_id');
-    if (!sessionId) {
-        throw redirect(302, '/login');
-    }
-
-    const userId = getUserIdFromSessionToken(sessionId);
-    const currentUser = await getUserBySessionId(platform, sessionId);
-
-    if (!currentUser || !userId) {
+export const load: PageServerLoad = async ({ locals, platform }) => {
+    const currentUser = locals.user;
+    if (!currentUser) {
         throw redirect(302, '/login');
     }
 
@@ -81,7 +74,7 @@ export const load: PageServerLoad = async ({ cookies, platform }) => {
         FROM rooms r
         LEFT JOIN room_requests req ON r.id = req.room_id
         JOIN "user" u ON r.creator_id = u.id
-        WHERE (r.creator_id = ${userId} OR req.requester_id = ${userId})
+        WHERE (r.creator_id = ${currentUser.id} OR req.requester_id = ${currentUser.id})
           AND (
               (r.status = 'OPEN' AND r.appointment_time > ${now}) OR
               (r.status = 'MATCHED' AND r.bumped_at > ${oneHourAgo})

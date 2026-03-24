@@ -1,7 +1,6 @@
 import { db } from '$lib/server/db';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { getKVCache, setKVCache } from '$lib/server/cache';
 import { env } from '$env/dynamic/private';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
@@ -49,10 +48,6 @@ export function getUserIdFromSessionToken(sessionToken: string) {
     return Number.isNaN(userId) ? null : userId;
 }
 
-export function getUserCacheKey(userId: number) {
-    return `user:${userId}`;
-}
-
 export function isMeetupProfileComplete(
     user: Pick<CachedUser, 'nickname' | 'grade' | 'college' | 'department' | 'gender' | 'kakaoId' | 'instaId'>
 ) {
@@ -68,25 +63,17 @@ export async function getUserBySessionId(
     sessionId: string,
     expirationTtl = 3600
 ): Promise<CachedUser | null> {
+    void platform;
+    void expirationTtl;
+
     const userId = getUserIdFromSessionToken(sessionId);
     if (!userId) {
         return null;
     }
 
-    const cacheKey = getUserCacheKey(userId);
-    const cachedUser = await getKVCache<CachedUser>(platform, cacheKey);
-
-    if (cachedUser) {
-        return cachedUser;
-    }
-
     const user = await db.query.users.findFirst({
         where: eq(users.id, userId)
     });
-
-    if (user) {
-        await setKVCache(platform, cacheKey, user, expirationTtl);
-    }
 
     return user ?? null;
 }

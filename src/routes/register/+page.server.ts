@@ -2,8 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { deleteKVCache } from '$lib/server/cache';
-import { getUserBySessionId, getUserCacheKey } from '$lib/server/user';
+import { getUserBySessionId } from '$lib/server/user';
 import { db } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -18,11 +17,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, platform }) => {
+	default: async ({ request, cookies }) => {
 		const sessionId = cookies.get('session_id');
 		if (!sessionId) throw redirect(303, '/login');
 
-		const sessionUser = await getUserBySessionId(platform, sessionId);
+		const sessionUser = await getUserBySessionId(undefined, sessionId);
 		if (!sessionUser) throw redirect(303, '/login');
 
 		const formData = await request.formData();
@@ -120,8 +119,6 @@ export const actions: Actions = {
 				isOnboarded: true
 			})
 			.where(eq(users.id, sessionUser.id));
-
-		await deleteKVCache(platform, getUserCacheKey(sessionUser.id));
 
 		throw redirect(303, '/my');
 	}

@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { getUserBySessionId, isMeetupProfileComplete } from '$lib/server/user';
 import { hasPinnedVisibleNotices } from '$lib/data/notices';
-import { getCachedTodayMenu } from '$lib/server/menu-cache';
+import { getTodayMenuWithRefresh } from '$lib/server/menu-cache';
 
 export const load: PageServerLoad = async ({ cookies, locals, platform, setHeaders }) => {
     setHeaders({
@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ cookies, locals, platform, setHeade
         { name: '\uAE30\uD0C0' }
     ];
 
-    const todayMenu = await getCachedTodayMenu(platform);
+    const todayMenu = await getTodayMenuWithRefresh(platform);
 
     const sessionId = cookies.get('session_id');
     const currentUser =

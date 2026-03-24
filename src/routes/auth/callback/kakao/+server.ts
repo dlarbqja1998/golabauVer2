@@ -4,10 +4,9 @@ import { db } from '$lib/server/db';
 import { users } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
-import { setKVCache } from '$lib/server/cache';
-import { createSessionToken, getUserCacheKey } from '$lib/server/user';
+import { createSessionToken } from '$lib/server/user';
 
-export const GET: RequestHandler = async ({ url, cookies, platform }) => {
+export const GET: RequestHandler = async ({ url, cookies }) => {
     const code = url.searchParams.get('code');
     if (!code) throw error(400, '인가 코드가 없습니다.');
 
@@ -63,27 +62,6 @@ export const GET: RequestHandler = async ({ url, cookies, platform }) => {
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7
     });
-
-    await setKVCache(
-        platform,
-        getUserCacheKey(user.id),
-        {
-            id: user.id,
-            nickname: user.nickname,
-            email: user.email,
-            profileImg: user.profileImg,
-            badge: user.badge,
-            isOnboarded: user.isOnboarded,
-            role: user.role,
-            college: user.college,
-            department: user.department,
-            grade: user.grade,
-            gender: user.gender,
-            kakaoId: user.kakaoId,
-            instaId: user.instaId
-        },
-        3600
-    );
 
     if (!user.isOnboarded) {
         throw redirect(303, '/register');
