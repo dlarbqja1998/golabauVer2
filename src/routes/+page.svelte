@@ -457,7 +457,7 @@
                                     </div>
                                     
                                     <div class="flex items-center gap-2 mt-4 mb-1">
-                                        <span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
+                                        <span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:00~18:30)</span>
                                     </div>
                                     {@render MenuCard('🍱 석식', selectedMenuDay.student.dinner, 'bg-purple-50', 'text-purple-600')}
                                 </div>
