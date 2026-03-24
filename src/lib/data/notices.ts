@@ -34,6 +34,18 @@ const notices: NoticeItem[] = [
 		publishedAt: '2026-03-23',
 		isPinned: false,
 		isVisible: true
+	},
+	{
+		id: '2026-03-24-feature-update',
+		title: '[업데이트] 학식UI/UX의 편의성을 업데이트했습니다.',
+		category: '업데이트',
+		summary:
+			'학식을 요일별로 확인하게끔 수정했습니다.',
+		content:
+			'안녕하세요. 골라바유입니다.\n\n이번 업데이트에서는 기존 학식을 일일로 보는 것에서,\n\n주간 전체를 볼 수 있게 수정했습니다.\n\n월/화/수/목/금 중 선택을 하면 해당 요일의 학식이 노출됩니다.\n\n 감사합니다.',
+		publishedAt: '2026-03-23',
+		isPinned: false,
+		isVisible: true
 	}
 ];
 
