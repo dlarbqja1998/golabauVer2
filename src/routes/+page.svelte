@@ -27,15 +27,36 @@
     }
 
     // ▼▼▼ [학식 로직] ▼▼▼
-    let todayMenu = $derived(data?.todayMenu);
+    let weeklyMenu = $derived(data?.todayMenu);
     let activeTab = $state('student');
+    let activeDayTab = $state('mon');
     let isMenuExpanded = $state(false);
 
     function formatDate(dateStr) {
         if (!dateStr) return '';
         const parts = dateStr.split('.');
-        return `${Number(parts[1])}.${Number(parts[2])}`;
+        if (parts.length === 3) {
+            return `${Number(parts[1])}.${Number(parts[2])}`;
+        }
+        return dateStr;
     }
+
+    function openMenuPanel() {
+        isMenuExpanded = true;
+        activeTab = 'student';
+        activeDayTab = weeklyMenu?.todayKey || 'mon';
+    }
+
+    function selectMenuDay(dayKey) {
+        activeDayTab = dayKey;
+    }
+
+    let selectedMenuDay = $derived(
+        weeklyMenu?.days?.find((day) => day.key === activeDayTab) ||
+        weeklyMenu?.days?.find((day) => day.key === weeklyMenu?.todayKey) ||
+        weeklyMenu?.days?.[0] ||
+        null
+    );
 
     // ▼▼▼ [버스 로직] ▼▼▼
     let nextToStation = $state('운행 종료');
@@ -364,19 +385,19 @@
             <div class="px-5 py-3 border-b border-gray-50 flex justify-between items-center">
                 <h2 class="font-bold text-lg text-gray-800 flex items-center gap-2 font-['Jua']">
                     🍽️ 오늘의 학식
-                    {#if todayMenu}
+                    {#if weeklyMenu}
                         <span class="text-xs font-normal text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                            {formatDate(todayMenu.date)} ({todayMenu.day})
+                            {formatDate(weeklyMenu.todayDate)} ({weeklyMenu.todayDay})
                         </span>
                     {/if}
                 </h2>
             </div>
 
-            {#if todayMenu}
+            {#if weeklyMenu}
                 {#if !isMenuExpanded}
                     <button 
                         class="w-full flex flex-col items-center justify-center cursor-pointer bg-red-50/50 hover:bg-red-50 transition-colors py-3 group"
-                        onclick={() => isMenuExpanded = true}
+                        onclick={openMenuPanel}
                     >
                         <div class="text-[#8B0029] transition-transform group-hover:scale-110 group-active:scale-95">
                             <ChevronDown size={24} strokeWidth={2.5} />
@@ -407,34 +428,49 @@
                             </button>
                         </div>
 
+                        <div class="flex border-b border-gray-100 bg-[#fff9fa] px-2">
+                            {#each weeklyMenu.days as day}
+                                <button
+                                    class={`flex-1 py-2 text-xs font-bold transition-colors rounded-t-lg ${activeDayTab === day.key ? 'text-[#8B0029] bg-white' : 'text-gray-400'}`}
+                                    onclick={() => selectMenuDay(day.key)}
+                                >
+                                    {day.day}
+                                </button>
+                            {/each}
+                        </div>
+
                         <div class="p-4 bg-white min-h-[200px]">
-                            {#if activeTab === 'student'}
+                            {#if selectedMenuDay && activeTab === 'student'}
                                 <div class="space-y-3 animate-fade-in">
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded">아침 (07:30~09:00)</span>
                                     </div>
-                                    {@render MenuCard('🍳 조식', todayMenu.student.breakfast, 'bg-sky-50', 'text-sky-700')}
+                                    {@render MenuCard('🍳 조식', selectedMenuDay.student.breakfast, 'bg-sky-50', 'text-sky-700')}
 
                                      <div class="flex items-center gap-2 mt-4 mb-1">
                                         <span class="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
                                     </div>
                                     <div class="grid grid-cols-1 gap-2">
-                                        {@render MenuCard('🍚 한식', todayMenu.student.korean, 'bg-orange-50', 'text-orange-600')}
-                                        {@render MenuCard('🍛 일품', todayMenu.student.special, 'bg-blue-50', 'text-blue-600')}
-                                        {@render MenuCard('🍜 분식', todayMenu.student.snack, 'bg-yellow-50', 'text-yellow-600')}
+                                        {@render MenuCard('🍚 한식', selectedMenuDay.student.korean, 'bg-orange-50', 'text-orange-600')}
+                                        {@render MenuCard('🍛 일품', selectedMenuDay.student.special, 'bg-blue-50', 'text-blue-600')}
+                                        {@render MenuCard('🍜 분식', selectedMenuDay.student.snack, 'bg-yellow-50', 'text-yellow-600')}
                                     </div>
                                     
                                     <div class="flex items-center gap-2 mt-4 mb-1">
                                         <span class="text-xs font-bold text-purple-500 bg-purple-50 px-2 py-0.5 rounded">저녁 (17:30~18:30)</span>
                                     </div>
-                                    {@render MenuCard('🍱 석식', todayMenu.student.dinner, 'bg-purple-50', 'text-purple-600')}
+                                    {@render MenuCard('🍱 석식', selectedMenuDay.student.dinner, 'bg-purple-50', 'text-purple-600')}
                                 </div>
-                            {:else}
+                            {:else if selectedMenuDay}
                                 <div class="space-y-3 animate-fade-in">
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
                                     </div>
-                                    {@render MenuCard('🥘 교직원 중식', todayMenu.faculty.lunch, 'bg-green-50', 'text-green-700')}
+                                    {@render MenuCard('🥘 교직원 중식', selectedMenuDay.faculty.lunch, 'bg-green-50', 'text-green-700')}
+                                </div>
+                            {:else}
+                                <div class="py-8 text-center text-sm text-gray-400">
+                                    이번 주 학식 정보가 없습니다.
                                 </div>
                             {/if}
                         </div>
