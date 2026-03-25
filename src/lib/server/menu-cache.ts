@@ -43,6 +43,35 @@ function getSeoulWeekStart(now = new Date()) {
     return `${year}.${month}.${day}`;
 }
 
+function getSeoulNow(now = new Date()) {
+    return new Date(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+}
+
+function getTodayMenuKey(now = new Date()): WeeklyMenu['todayKey'] {
+    const weekday = getSeoulNow(now).getDay();
+    if (weekday === 1) return 'mon';
+    if (weekday === 2) return 'tue';
+    if (weekday === 3) return 'wed';
+    if (weekday === 4) return 'thu';
+    return 'fri';
+}
+
+function withCurrentTodayFields(menu: WeeklyMenu, now = new Date()): WeeklyMenu {
+    const todayKey = getTodayMenuKey(now);
+    const todayMenu = menu.days.find((day) => day.key === todayKey) ?? menu.days[0];
+
+    if (!todayMenu) {
+        return menu;
+    }
+
+    return {
+        ...menu,
+        todayKey,
+        todayDate: todayMenu.date,
+        todayDay: todayMenu.day
+    };
+}
+
 async function readJson<T>(kv: MenuKV | null, key: string): Promise<T | null> {
     if (!kv) return null;
 
@@ -77,7 +106,11 @@ function isFreshWeeklyMenu(menu: WeeklyMenu | null, now = new Date()) {
 export async function getCachedWeeklyMenu(platform: CachePlatform | undefined): Promise<WeeklyMenu | null> {
     const cached = await readJson<unknown>(getMenuCache(platform), MENU_CACHE_KEY);
     const menu = isWeeklyMenu(cached) ? cached : null;
-    return isFreshWeeklyMenu(menu) ? menu : null;
+    if (!menu || !isFreshWeeklyMenu(menu)) {
+        return null;
+    }
+
+    return withCurrentTodayFields(menu);
 }
 
 export async function refreshTodayMenuCache(platform: CachePlatform | undefined): Promise<MenuRefreshResult> {
@@ -131,7 +164,7 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
             )
         ]);
 
-        return { status: 'updated', menu: menuResult };
+        return { status: 'updated', menu: withCurrentTodayFields(menuResult) };
     } catch (error) {
         await writeJson(
             kv,
@@ -159,7 +192,7 @@ export async function getTodayMenuWithRefresh(platform: CachePlatform | undefine
 
     const refreshed = await refreshTodayMenuCache(platform);
     if (refreshed.status === 'updated') {
-        return refreshed.menu;
+        return withCurrentTodayFields(refreshed.menu);
     }
 
     return null;
