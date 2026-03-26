@@ -95,6 +95,7 @@
 
         try {
             const res = await fetch(`/api/comment?postId=${postId}`);
+            if (!res.ok) throw new Error('failed_to_load_comments');
             comments = await res.json();
         } catch (e) {
             showToast('댓글을 불러오지 못했습니다 🥲');
@@ -126,7 +127,8 @@
             });
             
             if (res.ok) {
-                await openComments(currentPostId);
+                const { comment } = await res.json();
+                comments = [comment, ...comments];
                 const targetPost = localPosts.find(p => p.id === currentPostId);
                 if (targetPost) {
                     targetPost.commentCount = (targetPost.commentCount || 0) + 1;
@@ -140,6 +142,8 @@
                         has_content: true
                     });
                 }
+            } else {
+                throw new Error('failed_to_create_comment');
             }
         } catch (e) {
             showToast('댓글 등록에 실패했습니다 🥲');
@@ -479,7 +483,7 @@
                                         return async ({ result }) => {
                                             if (result.type === 'success') {
                                                 showToast('댓글이 삭제되었습니다 🗑️');
-                                                await openComments(currentPostId);
+                                                comments = comments.filter((item) => item.id !== comment.id);
                                                 const targetPost = localPosts.find(p => p.id === currentPostId);
                                                 if (targetPost) targetPost.commentCount = Math.max(0, targetPost.commentCount - 1);
                                             } else {

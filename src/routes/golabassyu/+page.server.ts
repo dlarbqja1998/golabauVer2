@@ -168,6 +168,7 @@ export const actions: Actions = {
         });
 
         // 🔥 [캐시 무효화] 피드 캐시(댓글 수 차감) + 해당 식당 리뷰 캐시 동시 폭파!
+        await deleteKVCache(platform, `post_comments_${comment.postId}`);
         await deleteKVCache(platform, CACHE_KEY);
         if (post && post.restaurantId) {
             await deleteKVCache(platform, `restaurant_detail_${post.restaurantId}`);

@@ -225,6 +225,7 @@ export const actions: Actions = {
         await db.delete(golabassyuComments).where(eq(golabassyuComments.id, commentId));
 
         // 🔥 [캐시 폭파] 리뷰의 댓글 수가 줄었으니 식당 상세 공용 캐시와 골라밧슈 피드 캐시 터뜨림!
+        await deleteKVCache(platform, `post_comments_${comment.postId}`);
         await deleteKVCache(platform, `restaurant_detail_${restaurantId}`);
         await deleteKVCache(platform, 'golabassyu_all_posts');
 

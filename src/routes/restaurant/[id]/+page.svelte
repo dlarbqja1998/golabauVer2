@@ -186,6 +186,7 @@
 		comments = []; 
 		try {
 			const res = await fetch(`/api/comment?postId=${postId}`);
+			if (!res.ok) throw new Error('failed_to_load_comments');
 			comments = await res.json();
 		} catch (e) {
 			showToast('댓글을 불러오지 못했습니다 🥲');
@@ -212,7 +213,8 @@
 			});
 			
 			if (res.ok) {
-				await openComments(selectedReview.id);
+				const { comment } = await res.json();
+				comments = [comment, ...comments];
 				if (selectedReview) {
 					selectedReview.commentCount = (selectedReview.commentCount || 0) + 1;
 				}
@@ -226,6 +228,8 @@
 						source: 'restaurant_detail'
 					});
 				}
+			} else {
+				throw new Error('failed_to_create_comment');
 			}
 		} catch (e) {
 			showToast('댓글 등록에 실패했습니다 🥲');
@@ -596,7 +600,7 @@
 											if (result.type === 'success') {
 												showToast('댓글이 삭제되었습니다 🗑️');
 												// 삭제 후 댓글창 새로고침
-												await openComments(selectedReview.id);
+												comments = comments.filter((item) => item.id !== comment.id);
 												// 화면상 리뷰 카운트 -1 빼주기
 												if (selectedReview) selectedReview.commentCount = Math.max(0, selectedReview.commentCount - 1);
 											} else {
