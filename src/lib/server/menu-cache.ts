@@ -24,6 +24,9 @@ type CachePlatform = {
     env?: {
         GOLABAU_CACHE?: MenuKV;
     };
+    context?: {
+        waitUntil(promise: Promise<unknown>): void;
+    };
 };
 
 function getMenuCache(platform: CachePlatform | undefined) {
@@ -45,6 +48,18 @@ function getSeoulWeekStart(now = new Date()) {
 
 function getSeoulNow(now = new Date()) {
     return new Date(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+}
+
+function shouldHideMenuUntilMondayLunch(now = new Date()) {
+    const seoulNow = getSeoulNow(now);
+    const weekday = seoulNow.getDay();
+    const hour = seoulNow.getHours();
+
+    if (weekday === 6 || weekday === 0) {
+        return true;
+    }
+
+    return weekday === 1 && hour < 11;
 }
 
 function getTodayMenuKey(now = new Date()): WeeklyMenu['todayKey'] {
@@ -84,6 +99,23 @@ async function readJson<T>(kv: MenuKV | null, key: string): Promise<T | null> {
     }
 }
 
+async function readCachedWeeklyMenu(
+    platform: CachePlatform | undefined,
+    { allowStale = false }: { allowStale?: boolean } = {}
+): Promise<WeeklyMenu | null> {
+    const cached = await readJson<unknown>(getMenuCache(platform), MENU_CACHE_KEY);
+    const menu = isWeeklyMenu(cached) ? cached : null;
+    if (!menu) {
+        return null;
+    }
+
+    if (!allowStale && !isFreshWeeklyMenu(menu)) {
+        return null;
+    }
+
+    return withCurrentTodayFields(menu);
+}
+
 async function writeJson(kv: MenuKV | null, key: string, value: unknown, expirationTtl: number) {
     if (!kv) return;
 
@@ -104,13 +136,7 @@ function isFreshWeeklyMenu(menu: WeeklyMenu | null, now = new Date()) {
 }
 
 export async function getCachedWeeklyMenu(platform: CachePlatform | undefined): Promise<WeeklyMenu | null> {
-    const cached = await readJson<unknown>(getMenuCache(platform), MENU_CACHE_KEY);
-    const menu = isWeeklyMenu(cached) ? cached : null;
-    if (!menu || !isFreshWeeklyMenu(menu)) {
-        return null;
-    }
-
-    return withCurrentTodayFields(menu);
+    return readCachedWeeklyMenu(platform);
 }
 
 export async function refreshTodayMenuCache(platform: CachePlatform | undefined): Promise<MenuRefreshResult> {
@@ -185,9 +211,25 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
 }
 
 export async function getTodayMenuWithRefresh(platform: CachePlatform | undefined): Promise<WeeklyMenu | null> {
+    if (shouldHideMenuUntilMondayLunch()) {
+        return null;
+    }
+
     const cachedMenu = await getCachedWeeklyMenu(platform);
     if (cachedMenu) {
         return cachedMenu;
+    }
+
+    const staleMenu = await readCachedWeeklyMenu(platform, { allowStale: true });
+    if (platform?.context?.waitUntil) {
+        platform.context.waitUntil(
+            refreshTodayMenuCache(platform).catch((error) => {
+                console.error('background menu refresh failed:', error);
+                return { status: 'failed', reason: error instanceof Error ? error.message : 'unknown_error' };
+            })
+        );
+
+        return staleMenu;
     }
 
     const refreshed = await refreshTodayMenuCache(platform);
@@ -195,5 +237,5 @@ export async function getTodayMenuWithRefresh(platform: CachePlatform | undefine
         return withCurrentTodayFields(refreshed.menu);
     }
 
-    return null;
+    return staleMenu;
 }
