@@ -443,7 +443,7 @@
                             {#if selectedMenuDay && activeTab === 'student'}
                                 <div class="space-y-3 animate-fade-in">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded">아침 (07:30~09:00)</span>
+                                        <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded">아침 (07:30~09:30)</span>
                                     </div>
                                     {@render MenuCard('🍳 조식', selectedMenuDay.student.breakfast, 'bg-sky-50', 'text-sky-700')}
 
@@ -464,7 +464,7 @@
                             {:else if selectedMenuDay}
                                 <div class="space-y-3 animate-fade-in">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~13:30)</span>
+                                        <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">점심 (11:30~14:00)</span>
                                     </div>
                                     {@render MenuCard('🥘 교직원 중식', selectedMenuDay.faculty.lunch, 'bg-green-50', 'text-green-700')}
                                 </div>
