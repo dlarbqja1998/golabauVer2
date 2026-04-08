@@ -31,7 +31,8 @@ export const actions: Actions = {
 		const grade = formData.get('grade')?.toString().trim() ?? '';
 		const birthYearValue = formData.get('birthYear')?.toString().trim() ?? '';
 		const gender = formData.get('gender')?.toString().trim() ?? '';
-		const contactType = formData.get('contactType')?.toString().trim() ?? '';
+		const rawContactType = formData.get('contactType')?.toString().trim() ?? '';
+		const contactType = rawContactType === 'kakao' || rawContactType === 'insta' ? rawContactType : '';
 		const contactValue = formData.get('contactValue')?.toString().trim() ?? '';
 		const agreePrivacy = formData.get('agreePrivacy')?.toString().trim() ?? '';
 
@@ -94,13 +95,6 @@ export const actions: Actions = {
 		if ((contactType && !contactValue) || (!contactType && contactValue)) {
 			return fail(400, {
 				message: '연락처를 입력하려면 수단과 값을 함께 입력해 주세요.',
-				...submittedValues
-			});
-		}
-
-		if (contactType && contactType !== 'kakao' && contactType !== 'insta') {
-			return fail(400, {
-				message: '연락처 수단이 올바르지 않습니다.',
 				...submittedValues
 			});
 		}

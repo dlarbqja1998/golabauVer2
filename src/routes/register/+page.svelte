@@ -12,10 +12,14 @@
 
 	let selectedCollege = $state(form?.college ?? '');
 	let selectedDepartment = $state(form?.department ?? '');
-	let selectedContactType = $state(form?.contactType ?? 'kakao');
+	let selectedContactType = $state(form?.contactType ?? '');
 	let departments = $derived(selectedCollege ? universityData[selectedCollege] ?? [] : []);
 	let contactPlaceholder = $derived(
-		selectedContactType === 'kakao' ? '카카오톡 ID를 입력해 주세요.' : '인스타그램 ID를 입력해 주세요.'
+		selectedContactType === 'kakao'
+			? '카카오톡 ID를 입력해 주세요.'
+			: selectedContactType === 'insta'
+				? '인스타그램 ID를 입력해 주세요.'
+				: '연락처를 선택하면 ID를 입력할 수 있어요.'
 	);
 </script>
 
@@ -32,7 +36,7 @@
 			</p>
 			<p class="mt-1 text-[14px] font-bold text-[#E53935]">*표시는 필수 항목입니다.</p>
 			<p class="mt-4 rounded-2xl bg-[#FFF1F3] px-4 py-3 text-[13px] font-bold leading-5 text-[#8B0029]">
-				만나볼텨?를 이용하려면 소속과 연락처 입력이 필수입니다.
+				프로필 등록은 가볍게 완료하고, 만나볼텨?를 이용할 때 소속과 연락처를 추가로 입력하면 됩니다.
 			</p>
 		</div>
 
