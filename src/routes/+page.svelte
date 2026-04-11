@@ -45,10 +45,43 @@
         isMenuExpanded = true;
         activeTab = 'student';
         activeDayTab = weeklyMenu?.todayKey || 'mon';
+        captureCafeteriaEvent('open_cafeteria_panel', {
+            default_tab: 'student',
+            default_day_key: weeklyMenu?.todayKey || 'mon'
+        });
     }
 
     function selectMenuDay(dayKey) {
         activeDayTab = dayKey;
+        captureCafeteriaEvent('select_cafeteria_day', {
+            day_key: dayKey,
+            tab_name: activeTab
+        });
+    }
+
+    function switchMenuTab(tabName) {
+        activeTab = tabName;
+        captureCafeteriaEvent('switch_cafeteria_tab', {
+            tab_name: tabName,
+            day_key: activeDayTab
+        });
+    }
+
+    function closeMenuPanel() {
+        isMenuExpanded = false;
+        captureCafeteriaEvent('close_cafeteria_panel', {
+            tab_name: activeTab,
+            day_key: activeDayTab
+        });
+    }
+
+    function captureCafeteriaEvent(event, properties = {}) {
+        if (typeof window === 'undefined' || !window.posthog) return;
+
+        window.posthog.capture(event, {
+            source: 'home_cafeteria_panel',
+            ...properties
+        });
     }
 
     let selectedMenuDay = $derived(
@@ -410,7 +443,7 @@
                         <div class="flex border-b border-gray-100">
                             <button 
                                 class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'student' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
-                                onclick={() => activeTab = 'student'}
+                                onclick={() => switchMenuTab('student')}
                             >
                                 학생식당
                                 {#if activeTab === 'student'}
@@ -419,7 +452,7 @@
                             </button>
                             <button 
                                 class={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'faculty' ? 'text-gray-800' : 'text-gray-400 bg-gray-50/50'}`}
-                                onclick={() => activeTab = 'faculty'}
+                                onclick={() => switchMenuTab('faculty')}
                             >
                                 교직원식당
                                 {#if activeTab === 'faculty'}
@@ -477,7 +510,7 @@
                         
                         <button 
                             class="w-full py-2 bg-red-50/50 flex justify-center items-center text-[#8B0029] hover:bg-red-50 transition-all border-t border-red-100 group"
-                            onclick={() => isMenuExpanded = false}
+                            onclick={closeMenuPanel}
                         >
                             <ChevronUp size={24} strokeWidth={2.5} class="transition-transform group-hover:scale-110 group-active:scale-95" />
                         </button>
