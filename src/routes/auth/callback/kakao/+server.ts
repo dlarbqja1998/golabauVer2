@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { users } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
-import { createSessionToken } from '$lib/server/user';
+import { createSessionToken, USER_STATUS } from '$lib/server/user';
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
     const code = url.searchParams.get('code');
@@ -54,6 +54,10 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
             })
             .returning();
         user = newUser;
+    }
+
+    if (user.status === USER_STATUS.DELETED) {
+        throw redirect(303, '/login?error=deleted');
     }
 
     cookies.set('session_id', createSessionToken(user.id), {

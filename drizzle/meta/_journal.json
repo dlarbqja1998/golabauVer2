@@ -15,6 +15,13 @@
       "when": 1774051200000,
       "tag": "0001_room_requests_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775955600000,
+      "tag": "0002_user_deletion_fields",
+      "breakpoints": true
     }
   ]
 }

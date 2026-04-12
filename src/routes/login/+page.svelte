@@ -1,26 +1,32 @@
 <script>
     import { MessageCircle } from 'lucide-svelte';
+
     let { data } = $props();
-    
-    // 🔥 서버에서 완성해서 넘겨준 URL을 그대로 받아서 사용합니다!
-    // (더 이상 프론트엔드에 카카오 클라이언트 ID가 노출되지 않음)
-    const kakaoLoginUrl = data.kakaoAuthUrl;
 </script>
 
-<div class="min-h-screen flex flex-col items-center justify-center bg-white p-6 pb-24">
-    <div class="text-center mb-10">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-2">골라바유<span class="text-red-500">.</span></h1>
-        <p class="text-gray-500 text-sm">결정장애를 위한 맛집 추천 커뮤니티</p>
+<div class="flex min-h-screen flex-col items-center justify-center bg-white p-6 pb-24">
+    <div class="mb-10 text-center">
+        <h1 class="mb-2 text-3xl font-extrabold text-gray-900">골라봐유<span class="text-red-500">.</span></h1>
+        <p class="text-sm text-gray-500">계정 하나로 시작하는 우리 학교 맛집 커뮤니티</p>
     </div>
 
-    <a href={kakaoLoginUrl} class="w-full max-w-sm bg-[#FEE500] hover:bg-[#FDD835] text-black/85 font-semibold rounded-xl py-4 px-6 flex items-center justify-center gap-3 transition-colors">
-        <div class="w-5 h-5 flex items-center justify-center">
-            <MessageCircle class="fill-black border-none" size={20} />
+    {#if data.loginError}
+        <div class="mb-4 w-full max-w-sm rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {data.loginError}
+        </div>
+    {/if}
+
+    <a
+        href={data.kakaoAuthUrl}
+        class="flex w-full max-w-sm items-center justify-center gap-3 rounded-xl bg-[#FEE500] px-6 py-4 font-semibold text-black/85 transition-colors hover:bg-[#FDD835]"
+    >
+        <div class="flex h-5 w-5 items-center justify-center">
+            <MessageCircle class="fill-black" size={20} />
         </div>
         <span>카카오로 3초 만에 시작하기</span>
     </a>
-    
-    <p class="mt-6 text-xs text-gray-400 text-center">
-        로그인 시 이용약관 및 개인정보처리방침에 동의하게 됩니다.
+
+    <p class="mt-6 text-center text-xs text-gray-400">
+        로그인하면 이용약관 및 개인정보처리방침에 동의한 것으로 간주됩니다.
     </p>
 </div>

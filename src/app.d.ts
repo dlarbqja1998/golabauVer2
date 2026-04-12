@@ -19,12 +19,13 @@ declare global {
                 badge: string | null;
                 isOnboarded: boolean | null;
                 role: string | null;
-                college?: string | null;
-                department?: string | null;
-                grade?: string | null;
-                gender?: string | null;
-                kakaoId?: string | null;
-                instaId?: string | null;
+                status: string | null;
+                college: string | null;
+                department: string | null;
+                grade: string | null;
+                gender: string | null;
+                kakaoId: string | null;
+                instaId: string | null;
             } | null;
         }
 

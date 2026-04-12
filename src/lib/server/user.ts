@@ -6,6 +6,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type CachedUser = typeof users.$inferSelect;
 
+export const USER_STATUS = {
+    ACTIVE: 'ACTIVE',
+    SUSPENDED: 'SUSPENDED',
+    DELETED: 'DELETED'
+} as const;
+
+export const DELETED_USER_NICKNAME = '탈퇴한 사용자';
+
 function getSessionSecret() {
     const secret = env.SESSION_SECRET || env.AUTH_KAKAO_SECRET;
     if (!secret) {
@@ -58,6 +66,14 @@ export function isMeetupProfileComplete(
     return hasNickname && !!user.grade && !!user.gender && hasMajor && hasContact;
 }
 
+export function isDeletedUser(user: Pick<CachedUser, 'status'> | null | undefined) {
+    return user?.status === USER_STATUS.DELETED;
+}
+
+export function buildDeletedEmail(userId: number, now = Date.now()) {
+    return `deleted_user_${userId}_${now}@deleted.local`;
+}
+
 export async function getUserBySessionId(
     platform: App.Platform | undefined,
     sessionId: string,
@@ -75,5 +91,9 @@ export async function getUserBySessionId(
         where: eq(users.id, userId)
     });
 
-    return user ?? null;
+    if (!user || isDeletedUser(user)) {
+        return null;
+    }
+
+    return user;
 }
