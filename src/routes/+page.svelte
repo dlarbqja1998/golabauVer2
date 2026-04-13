@@ -229,6 +229,12 @@
             }
 
             if (res.ok) {
+                if (typeof window !== 'undefined' && window.posthog) {
+                    window.posthog.capture('submitted_contact_inquiry', {
+                        category: contactCategory,
+                        has_contact_info: Boolean(contactInfo.trim())
+                    });
+                }
                 showToast('소중한 의견 감사합니다! 🙇‍♂️'); 
                 isContactModalOpen = false;
                 contactContent = '';
@@ -336,7 +342,6 @@
         <button 
             onclick={() => {
                 handleContactClick();
-                if (typeof window !== 'undefined' && window.posthog) window.posthog.capture('clicked_contact_btn');
             }}
             class="flex flex-col items-center justify-center p-1 text-gray-500 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100 active:scale-95"
             aria-label="문의하기"
