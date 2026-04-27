@@ -4,6 +4,7 @@ import { rooms, users } from '../../db/schema';
 import { eq, and, desc, gt, sql } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import { getUserIdFromSessionToken } from '$lib/server/user';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 export const load: PageServerLoad = async ({ cookies }) => {
     const sessionId = cookies.get('session_id');
@@ -105,6 +106,13 @@ export const actions: Actions = {
                 platform?.env?.GOLABAU_CACHE?.delete('active_meetup_rooms'),
                 platform?.env?.GOLABAU_CACHE?.delete(`meetup_room:${roomId}`)
             ]);
+            observeKVMutation(platform, {
+                action: 'delete',
+                source: 'shop-bump',
+                key: 'active_meetup_rooms,meetup_room:*',
+                path: '/shop',
+                userId
+            });
 
             return { success: true };
         } catch (error) {

@@ -30,3 +30,11 @@ vite.config.ts.timestamp-*
 
 seed.ts
 optimize-images.mjs
+
+# Internal team docs
+/.team-private/
+
+*.md
+
+docs/
+

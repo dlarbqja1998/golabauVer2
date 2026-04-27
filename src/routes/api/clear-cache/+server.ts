@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 export const POST: RequestHandler = async ({ platform, request }) => {
     const cacheClearSecret =
@@ -25,12 +26,24 @@ export const POST: RequestHandler = async ({ platform, request }) => {
         }
 
         const listResult = await kv.list({ prefix: 'list_' });
+        observeKVMutation(platform, {
+            action: 'list',
+            source: 'clear-cache-api',
+            key: 'list_*',
+            path: '/api/clear-cache'
+        });
         const keysToDelete = listResult.keys.map((k: { name: string }) => k.name);
 
         keysToDelete.push('roulette_lightweight_restaurants');
         keysToDelete.push('all_restaurants_basic');
 
         await Promise.allSettled(keysToDelete.map((key: string) => kv.delete(key)));
+        observeKVMutation(platform, {
+            action: 'delete',
+            source: 'clear-cache-api',
+            key: `${keysToDelete.length} keys`,
+            path: '/api/clear-cache'
+        });
 
         return json({
             success: true,

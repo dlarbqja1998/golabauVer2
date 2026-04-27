@@ -1,4 +1,5 @@
 import { getCafeteriaMenu, type WeeklyMenuResult } from './scraper';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 export const MENU_CACHE_KEY = 'cafeteria_menu_weekly';
 export const MENU_META_KEY = 'cafeteria_menu_weekly_meta';
@@ -116,11 +117,22 @@ async function readCachedWeeklyMenu(
     return withCurrentTodayFields(menu);
 }
 
-async function writeJson(kv: MenuKV | null, key: string, value: unknown, expirationTtl: number) {
+async function writeJson(
+    platform: CachePlatform | undefined,
+    kv: MenuKV | null,
+    key: string,
+    value: unknown,
+    expirationTtl: number
+) {
     if (!kv) return;
 
     try {
         await kv.put(key, JSON.stringify(value), { expirationTtl });
+        observeKVMutation(platform as App.Platform | undefined, {
+            action: 'write',
+            source: 'menu-cache',
+            key
+        });
     } catch (error) {
         console.error(`menu cache write failed: ${key}`, error);
     }
@@ -160,6 +172,7 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
         const menuResult = await getCafeteriaMenu();
         if (typeof menuResult !== 'object' || menuResult === null) {
             await writeJson(
+                platform,
                 kv,
                 MENU_META_KEY,
                 {
@@ -176,8 +189,9 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
         }
 
         await Promise.all([
-            writeJson(kv, MENU_CACHE_KEY, menuResult, 60 * 60 * 24 * 8),
+            writeJson(platform, kv, MENU_CACHE_KEY, menuResult, 60 * 60 * 24 * 8),
             writeJson(
+                platform,
                 kv,
                 MENU_META_KEY,
                 {
@@ -193,6 +207,7 @@ export async function refreshTodayMenuCache(platform: CachePlatform | undefined)
         return { status: 'updated', menu: withCurrentTodayFields(menuResult) };
     } catch (error) {
         await writeJson(
+            platform,
             kv,
             MENU_META_KEY,
             {

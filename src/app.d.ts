@@ -34,6 +34,9 @@ declare global {
                 GOLABAU_CACHE: KVNamespace;
                 CACHE_CLEAR_SECRET?: string;
                 ADMIN_SECRET_KEY?: string;
+                DISCORD_WEBHOOK_URL?: string;
+                KV_ALERT_WEBHOOK_URL?: string;
+                KV_ALERT_COOLDOWN_SECONDS?: string;
             };
             context: {
                 waitUntil(promise: Promise<any>): void;

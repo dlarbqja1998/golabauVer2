@@ -7,6 +7,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
 import { isMeetupProfileComplete } from '$lib/server/user';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 const CACHE_KEY = 'active_meetup_rooms';
 
@@ -62,6 +63,13 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
         if (kv) {
             await kv.put(CACHE_KEY, JSON.stringify(activeRooms), {
                 expirationTtl: 60
+            });
+            observeKVMutation(platform, {
+                action: 'write',
+                source: 'meetup-list',
+                key: CACHE_KEY,
+                path: '/meetup',
+                userId: currentUser.id
             });
         }
     }

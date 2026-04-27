@@ -1,4 +1,5 @@
 // src/lib/server/cache.ts
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 // 1. 캐시 불러오기
 export async function getKVCache<T>(platform: App.Platform | undefined, key: string): Promise<T | null> {
@@ -23,6 +24,11 @@ export async function setKVCache(platform: App.Platform | undefined, key: string
     try {
         // 기본적으로 1일(86400초) 동안 저장해둡니다. (어차피 새 글 쓰면 우리가 강제로 폭파시킬 거라 넉넉하게 잡음)
         await platform.env.GOLABAU_CACHE.put(key, JSON.stringify(data), { expirationTtl });
+        observeKVMutation(platform, {
+            action: 'write',
+            source: 'setKVCache',
+            key
+        });
     } catch (e) {
         console.error(`KV 캐시 저장 실패 (${key}):`, e);
     }
@@ -34,6 +40,11 @@ export async function deleteKVCache(platform: App.Platform | undefined, key: str
 
     try {
         await platform.env.GOLABAU_CACHE.delete(key);
+        observeKVMutation(platform, {
+            action: 'delete',
+            source: 'deleteKVCache',
+            key
+        });
         console.log(`💥 KV 캐시 폭파 완료! (${key}) - 다음 접속자는 최신 DB를 보게 됩니다.`);
     } catch (e) {
         console.error(`KV 캐시 폭파 실패 (${key}):`, e);

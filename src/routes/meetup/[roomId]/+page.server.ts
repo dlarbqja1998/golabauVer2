@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { redirect, fail } from '@sveltejs/kit';
 import { sendPushNotification } from '$lib/server/push';
 import { captureServerEvent } from '$lib/server/posthog';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 const LIST_CACHE_KEY = 'active_meetup_rooms';
 const MATCHED_ROOM_TTL_MS = 60 * 60 * 1000;
@@ -28,6 +29,12 @@ async function invalidateMeetupCaches(platform: App.Platform | undefined, roomId
         kv.delete(LIST_CACHE_KEY),
         kv.delete(getRoomCacheKey(roomId))
     ]);
+    observeKVMutation(platform, {
+        action: 'delete',
+        source: 'meetup-room-invalidate',
+        key: `${LIST_CACHE_KEY},meetup_room:*`,
+        path: `/meetup/${roomId}`
+    });
 }
 
 export const load: PageServerLoad = async ({ params, locals, url, platform }) => {
@@ -165,7 +172,16 @@ export const load: PageServerLoad = async ({ params, locals, url, platform }) =>
                 appliedReq
             };
 
-            if (kv) await kv.put(cacheKey, JSON.stringify(payload), { expirationTtl: 60 });
+            if (kv) {
+                await kv.put(cacheKey, JSON.stringify(payload), { expirationTtl: 60 });
+                observeKVMutation(platform, {
+                    action: 'write',
+                    source: 'meetup-room',
+                    key: 'meetup_room:*',
+                    path: `/meetup/${roomId}`,
+                    userId: locals.user.id
+                });
+            }
         } catch (error) {
             console.error('방 정보 조회 에러:', error);
             if (error instanceof Response) throw error;

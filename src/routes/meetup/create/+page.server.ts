@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { rooms, users, restaurants } from '../../../db/schema';
 import { redirect, fail } from '@sveltejs/kit';
 import { eq, and, gt, sql } from 'drizzle-orm';
+import { observeKVMutation } from '$lib/server/kv-monitor';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
     if (!locals.user) throw redirect(302, '/login');
@@ -34,6 +35,13 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
                 .from(restaurants);
 
             await kv.put('all_restaurants_basic', JSON.stringify(allRestaurants), { expirationTtl: 86400 });
+            observeKVMutation(platform, {
+                action: 'write',
+                source: 'meetup-create',
+                key: 'all_restaurants_basic',
+                path: '/meetup/create',
+                userId: locals.user?.id
+            });
         }
     } else {
         allRestaurants = await db
@@ -142,6 +150,13 @@ export const actions: Actions = {
             const kv = platform?.env?.GOLABAU_CACHE;
             if (kv) {
                 await kv.delete('active_meetup_rooms');
+                observeKVMutation(platform, {
+                    action: 'delete',
+                    source: 'meetup-create',
+                    key: 'active_meetup_rooms',
+                    path: '/meetup/create',
+                    userId: locals.user.id
+                });
             }
         } catch (error) {
             console.error('Room Create Error:', error);
