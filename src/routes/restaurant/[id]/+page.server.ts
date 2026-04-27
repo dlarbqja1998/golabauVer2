@@ -8,7 +8,7 @@ import type { PageServerLoad, Actions } from './$types';
 // 🔥 KV 캐시 함수 임포트
 import { getKVCache, setKVCache, deleteKVCache } from '$lib/server/cache';
 
-export const load: PageServerLoad = async ({ params, locals, platform }) => {
+export const load: PageServerLoad = async ({ params, locals, platform, request, url, getClientAddress }) => {
     const restaurantId = Number(params.id);
     const user = locals.user;
     const currentUserId = user ? user.id : 0; 
@@ -54,7 +54,18 @@ export const load: PageServerLoad = async ({ params, locals, platform }) => {
 
             // 데이터 묶어서 KV에 저장
             cachedData = { safeRestaurant: restaurantData[0], topKeywords, fetchedReviews };
-            await setKVCache(platform, CACHE_KEY, cachedData);
+            await setKVCache(platform, CACHE_KEY, cachedData, 86400, {
+                source: 'restaurant-detail',
+                path: url.pathname,
+                userId: user?.id,
+                ip:
+                    request.headers.get('cf-connecting-ip') ||
+                    request.headers.get('x-real-ip') ||
+                    getClientAddress(),
+                country: request.headers.get('cf-ipcountry'),
+                userAgent: request.headers.get('user-agent'),
+                cfRay: request.headers.get('cf-ray')
+            });
         }
 
         const { safeRestaurant, topKeywords, fetchedReviews } = cachedData;

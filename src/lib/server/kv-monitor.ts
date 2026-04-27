@@ -8,6 +8,10 @@ type KVMutationDetails = {
     key: string;
     path?: string;
     userId?: number | string | null;
+    ip?: string | null;
+    country?: string | null;
+    userAgent?: string | null;
+    cfRay?: string | null;
     note?: string;
 };
 
@@ -59,6 +63,16 @@ async function sendKVMutationAlert(platform: App.Platform | undefined, details: 
 
     if (details.path) fields.push({ name: 'path', value: details.path, inline: true });
     if (details.userId) fields.push({ name: 'userId', value: String(details.userId), inline: true });
+    if (details.ip) fields.push({ name: 'ip', value: details.ip, inline: true });
+    if (details.country) fields.push({ name: 'country', value: details.country, inline: true });
+    if (details.cfRay) fields.push({ name: 'cf-ray', value: details.cfRay, inline: true });
+    if (details.userAgent) {
+        fields.push({
+            name: 'user-agent',
+            value: details.userAgent.slice(0, 240),
+            inline: false
+        });
+    }
     if (details.note) fields.push({ name: 'note', value: details.note, inline: false });
 
     const payload = {
