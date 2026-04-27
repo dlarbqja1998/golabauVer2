@@ -20,8 +20,17 @@ function getWebhookUrl() {
     return env.KV_ALERT_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL || '';
 }
 
+function getAlertGroupKey(key: string) {
+    if (/^restaurant_detail_\d+$/.test(key)) return 'restaurant_detail_*';
+    if (/^user_likes_\d+$/.test(key)) return 'user_likes_*';
+    if (/^user_eval_\d+_\d+$/.test(key)) return 'user_eval_*';
+    if (/^post_comments_\d+$/.test(key)) return 'post_comments_*';
+    if (/^meetup_room:\d+$/.test(key)) return 'meetup_room:*';
+    return key;
+}
+
 function getCooldownKey(details: KVMutationDetails) {
-    const raw = `${details.action}:${details.source}:${details.key}`;
+    const raw = `${details.action}:${details.source}:${getAlertGroupKey(details.key)}`;
     const normalized = raw.replace(/[^a-zA-Z0-9:_-]/g, '_').slice(0, 180);
     return `__kv_monitor_cooldown:${normalized}`;
 }
@@ -44,6 +53,7 @@ async function sendKVMutationAlert(platform: App.Platform | undefined, details: 
     const fields = [
         { name: 'action', value: details.action, inline: true },
         { name: 'source', value: details.source, inline: true },
+        { name: 'group', value: getAlertGroupKey(details.key), inline: true },
         { name: 'key', value: details.key, inline: false }
     ];
 
