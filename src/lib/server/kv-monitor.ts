@@ -24,6 +24,10 @@ function getWebhookUrl() {
     return env.KV_ALERT_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL || '';
 }
 
+function shouldIncludeRoutineWrites() {
+    return env.KV_ALERT_INCLUDE_ROUTINE_WRITES === 'true';
+}
+
 function getAlertGroupKey(key: string) {
     if (/^restaurant_detail_\d+$/.test(key)) return 'restaurant_detail_*';
     if (/^user_likes_\d+$/.test(key)) return 'user_likes_*';
@@ -39,9 +43,21 @@ function getCooldownKey(details: KVMutationDetails) {
     return `__kv_monitor_cooldown:${normalized}`;
 }
 
+function isRoutineReadThroughWrite(details: KVMutationDetails) {
+    if (details.action !== 'write') return false;
+
+    const group = getAlertGroupKey(details.key);
+    return (
+        (details.source === 'restaurant-detail' && group === 'restaurant_detail_*') ||
+        (details.source === 'setKVCache' && ['user_likes_*', 'user_eval_*'].includes(group)) ||
+        (details.source === 'menu-cache' && details.key.startsWith('cafeteria_menu_weekly'))
+    );
+}
+
 async function sendKVMutationAlert(platform: App.Platform | undefined, details: KVMutationDetails) {
     const webhookUrl = getWebhookUrl();
     if (!webhookUrl) return;
+    if (!shouldIncludeRoutineWrites() && isRoutineReadThroughWrite(details)) return;
 
     const kv = platform?.env?.GOLABAU_CACHE;
     if (kv) {
