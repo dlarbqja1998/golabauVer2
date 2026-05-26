@@ -301,7 +301,12 @@
 		if (lastPageviewKey === pageviewKey) return;
 		lastPageviewKey = pageviewKey;
 
-		window.posthog.capture('$pageview', buildPageviewProperties($page.url, routeData, Boolean(data?.hasSession)));
+		const pageviewProperties = buildPageviewProperties($page.url, routeData, Boolean(data?.hasSession));
+		window.posthog.capture('$pageview', pageviewProperties);
+
+		if (pageviewProperties.page_type === 'restaurant_detail') {
+			window.posthog.capture('view_restaurant_detail', pageviewProperties);
+		}
 	});
 </script>
 
