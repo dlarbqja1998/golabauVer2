@@ -2,9 +2,13 @@ import type { Handle } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { getUserBySessionId, isDeletedUser, isMeetupProfileComplete } from '$lib/server/user';
 import { db } from '$lib/server/db';
+import { createLegacyShutdownResponse } from '$lib/server/legacy-shutdown';
 import { users } from './db/schema';
 
 export const handle: Handle = async ({ event, resolve }) => {
+    const shutdownResponse = createLegacyShutdownResponse(event.request);
+    if (shutdownResponse) return shutdownResponse;
+
     const path = event.url.pathname;
     const userAgent = event.request.headers.get('user-agent')?.toLowerCase() || '';
 
